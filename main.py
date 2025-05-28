@@ -10,8 +10,8 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 
 # إعداد متغيرات البيئة
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-EMAIL_USER = 'asedalnajar198@gmail.com'
-EMAIL_PASS = 'vwnjbeyxmeqvrgig'  # كلمة مرور التطبيق (App Password)
+EMAIL_USER = os.environ.get("EMAIL_USER")
+EMAIL_PASS = os.environ.get("EMAIL_PASS")
 EMAIL_TO   = 'gotomoneybox2020@gmail.com'
 
 # التحقق من وجود المتغيراتs
@@ -116,6 +116,7 @@ def run_job():
 
 # تشغيل المجدول
 if __name__ == "__main__":
+    print("[DEBUG] Starting spa_news_checker script...")
     init_db()
     scheduler = BlockingScheduler()
     scheduler.add_job(run_job, 'interval', minutes=20)
