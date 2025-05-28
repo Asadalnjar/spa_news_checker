@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: spa-news-monitor
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: EMAIL_USERNAME
+        sync: false
+      - key: EMAIL_PASSWORD
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: EMAIL_TO
+        sync: false
+      - key: SMTP_SERVER
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: 587
+      - key: TARGET_URL
+        value: https://www.spa.gov.sa/en/news/latest-news?page=4
+      - key: OPENAI_MODEL
+        value: gpt-3.5-turbo
+      - key: CHECK_INTERVAL_MINUTES
+        value: 20
+    plan: starter

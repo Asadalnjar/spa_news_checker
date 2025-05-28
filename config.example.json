@@ -1,0 +1,14 @@
+{
+  "target_url": "https://www.spa.gov.sa/en/news/latest-news?page=4",
+  "database_path": "news_monitor.db",
+  "openai_api_key": "sk-proj-example123456789abcdef",
+  "openai_model": "gpt-3.5-turbo",
+  "email": {
+    "smtp_server": "smtp.gmail.com",
+    "smtp_port": 587,
+    "username": "your.email@gmail.com",
+    "password": "abcd efgh ijkl mnop",
+    "from_email": "your.email@gmail.com",
+    "to_email": "recipient@gmail.com"
+  }
+}
