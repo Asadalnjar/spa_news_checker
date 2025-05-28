@@ -14,7 +14,7 @@ EMAIL_USER = 'asedalnajar198@gmail.com'
 EMAIL_PASS = 'vwnjbeyxmeqvrgig'  # كلمة مرور التطبيق (App Password)
 EMAIL_TO   = 'gotomoneybox2020@gmail.com'
 
-# التحقق من وجود المتغيرات
+# التحقق من وجود المتغيراتs
 if not all([OPENAI_API_KEY, EMAIL_USER, EMAIL_PASS, EMAIL_TO]):
     raise EnvironmentError("❌ تأكد من تعيين جميع المتغيرات البيئية: OPENAI_API_KEY, EMAIL_USER, EMAIL_PASS, EMAIL_TO")
 
@@ -120,5 +120,10 @@ if __name__ == "__main__":
     scheduler = BlockingScheduler()
     scheduler.add_job(run_job, 'interval', minutes=20)
     print("[INFO] Scheduler started. Checking every 20 minutes...")
-    run_job()  # تنفيذ أولي عند التشغيل
-    scheduler.start()
+
+    run_job()  # تشغيل أول مرة مباشرة
+
+    try:
+        scheduler.start()
+    except (KeyboardInterrupt, SystemExit):
+        print("[INFO] Scheduler stopped.")
