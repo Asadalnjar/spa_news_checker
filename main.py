@@ -14,8 +14,8 @@ import logging
 import smtplib
 import requests
 from datetime import datetime
-from email.mime.text import MimeText
-from email.mime.multipart import MimeMultipart
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from typing import List, Dict, Optional, Tuple
 from urllib.parse import urljoin, urlparse
 
@@ -334,7 +334,7 @@ class SPANewsMonitor:
         """Send email notification based on grammar check results."""
         try:
             # Create message
-            msg = MimeMultipart()
+            msg = MIMEMultipart()
             msg['From'] = self.smtp_config['from_email']
             msg['To'] = self.smtp_config['to_email']
             msg['Subject'] = f"SPA News Grammar Check - News #{news_index} - {status}"
@@ -352,7 +352,7 @@ Status: {status}
             
             body += f"\n\nChecked at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
             
-            msg.attach(MimeText(body, 'plain'))
+            msg.attach(MIMEText(body, 'plain'))
             
             # Send email
             server = smtplib.SMTP(self.smtp_config['smtp_server'], self.smtp_config['smtp_port'])
