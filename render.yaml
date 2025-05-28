@@ -8,13 +8,13 @@ services:
       - key: OPENAI_API_KEY
         sync: false
       - key: EMAIL_USERNAME
-        sync: false
+        value: asedalnajar198@gmail.com
       - key: EMAIL_PASSWORD
-        sync: false
+        value: vwnjbeyxmeqvrgig
       - key: EMAIL_FROM
-        sync: false
+        value: asedalnajar198@gmail.com
       - key: EMAIL_TO
-        sync: false
+        value: gotomoneybox2020@gmail.com
       - key: SMTP_SERVER
         value: smtp.gmail.com
       - key: SMTP_PORT
