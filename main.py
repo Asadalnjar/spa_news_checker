@@ -100,7 +100,7 @@ def send_email(subject, body):
 
 # المهمة الأساسية التي تعمل كل 20 دقيقة
 def run_job():
-    print(f"[INFO] Checking news at {time.strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"[DEBUG] run_job() triggered at {time.strftime('%Y-%m-%d %H:%M:%S')}")
     links = fetch_news_links()
     for link in links:
         if is_new_url(link):
