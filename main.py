@@ -12,7 +12,7 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 EMAIL_USER = os.environ.get("EMAIL_USER")
 EMAIL_PASS = os.environ.get("EMAIL_PASS")
-EMAIL_TO   = 'gotomoneybox2020@gmail.com'
+EMAIL_TO   = os.environ.get(" EMAIL_TO")
 
 # التحقق من وجود المتغيراتs
 if not all([OPENAI_API_KEY, EMAIL_USER, EMAIL_PASS, EMAIL_TO]):
