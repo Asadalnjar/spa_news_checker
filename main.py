@@ -33,6 +33,35 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.common.exceptions import TimeoutException, WebDriverException
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+from webdriver_manager.chrome import ChromeDriverManager
+import os
+
+def get_webdriver():
+    chrome_options = Options()
+    
+    # تشغيل بدون واجهة رسومية (مناسب للسيرفرات)
+    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--window-size=1920x1080")
+
+    # تحديد موقع Chrome في حال تم تحديده كمتغير بيئة
+    chrome_binary = os.environ.get("GOOGLE_CHROME_BIN")
+    if chrome_binary:
+        chrome_options.binary_location = chrome_binary
+
+    try:
+        # إنشاء WebDriver باستخدام WebDriverManager
+        service = Service(ChromeDriverManager().install())
+        driver = webdriver.Chrome(service=service, options=chrome_options)
+        return driver
+    except Exception as e:
+        print(f"❌ Error creating WebDriver: {e}")
+        return None
 
 # Import health check server for cloud deployment
 try:
@@ -371,6 +400,7 @@ class SPANewsMonitor:
                                         'url': full_url,
                                         'title': title
                                     })
+            
             
             # Remove duplicates
             seen_urls = set()
