@@ -102,46 +102,73 @@ class SPANewsMonitor:
             chrome_options.add_argument('--disable-low-res-tiling')
             chrome_options.add_argument('--log-level=3')
             chrome_options.add_argument('--silent')
+            chrome_options.add_argument('--disable-web-security')
+            chrome_options.add_argument('--disable-features=VizDisplayCompositor')
+            chrome_options.add_argument('--disable-ipc-flooding-protection')
+            chrome_options.add_argument('--remote-debugging-port=9222')
             
             # User agent
             chrome_options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
             
-            # Try to use system Chrome first, fallback to ChromeDriverManager
-            try:
-                # For cloud deployment, try common Chrome paths
-                chrome_paths = [
-                    '/usr/bin/google-chrome',
-                    '/usr/bin/chromium-browser',
-                    '/usr/bin/chromium',
-                    '/opt/google/chrome/chrome'
-                ]
-                
-                chrome_binary = None
-                for path in chrome_paths:
-                    if os.path.exists(path):
-                        chrome_binary = path
-                        break
-                
-                if chrome_binary:
-                    chrome_options.binary_location = chrome_binary
-                    service = Service()
-                else:
-                    # Fallback to ChromeDriverManager
+            # Try multiple approaches to create WebDriver
+            driver = None
+            
+            # Approach 1: Try system Chrome with specific binary location
+            chrome_paths = [
+                '/usr/bin/google-chrome',
+                '/usr/bin/google-chrome-stable',
+                '/usr/bin/chromium-browser',
+                '/usr/bin/chromium',
+                '/opt/google/chrome/chrome',
+                '/opt/google/chrome/google-chrome'
+            ]
+            
+            for chrome_path in chrome_paths:
+                if os.path.exists(chrome_path):
+                    try:
+                        logger.info(f"Trying Chrome binary: {chrome_path}")
+                        chrome_options.binary_location = chrome_path
+                        
+                        # Try with system chromedriver first
+                        try:
+                            service = Service('/usr/bin/chromedriver')
+                            driver = webdriver.Chrome(service=service, options=chrome_options)
+                            logger.info(f"WebDriver created with system chromedriver and {chrome_path}")
+                            break
+                        except:
+                            # Fallback to ChromeDriverManager
+                            service = Service(ChromeDriverManager().install())
+                            driver = webdriver.Chrome(service=service, options=chrome_options)
+                            logger.info(f"WebDriver created with ChromeDriverManager and {chrome_path}")
+                            break
+                    except Exception as e:
+                        logger.debug(f"Failed with {chrome_path}: {e}")
+                        continue
+            
+            # Approach 2: If no system Chrome found, try ChromeDriverManager only
+            if not driver:
+                try:
+                    logger.info("Trying ChromeDriverManager without specific binary")
+                    chrome_options.binary_location = None  # Let Chrome find itself
                     service = Service(ChromeDriverManager().install())
-                
-                driver = webdriver.Chrome(service=service, options=chrome_options)
+                    driver = webdriver.Chrome(service=service, options=chrome_options)
+                    logger.info("WebDriver created with ChromeDriverManager")
+                except Exception as e:
+                    logger.error(f"ChromeDriverManager failed: {e}")
+                    raise
+            
+            if driver:
                 driver.set_page_load_timeout(30)
                 driver.implicitly_wait(10)
-                
-                logger.info("WebDriver created successfully")
+                logger.info("WebDriver configured successfully")
                 return driver
-                
-            except Exception as e:
-                logger.error(f"Error creating WebDriver: {e}")
-                raise
+            else:
+                raise Exception("Failed to create WebDriver with any method")
                 
         except Exception as e:
             logger.error(f"Failed to create WebDriver: {e}")
+            # Fallback: try to use requests instead
+            logger.info("WebDriver failed, will fallback to requests method")
             raise
     
     def load_config(self, config_file: str) -> Dict:
@@ -251,11 +278,79 @@ class SPANewsMonitor:
         except sqlite3.Error as e:
             logger.error(f"Database insert error: {e}")
     
+    def fetch_news_links_with_requests(self) -> List[Dict[str, str]]:
+        """Fallback method to fetch news links using requests."""
+        try:
+            logger.info("Using requests fallback method...")
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1'
+            }
+            
+            response = requests.get(self.target_url, headers=headers, timeout=30)
+            response.raise_for_status()
+            
+            soup = BeautifulSoup(response.content, 'html.parser')
+            
+            # Find news article links
+            news_items = []
+            
+            # Try various selectors
+            selectors = [
+                'a[href*="/viewfullstory/"]',
+                'a[href*="/news/"]',
+                '.news-item a',
+                '.article-title a',
+                'h3 a',
+                'h2 a',
+                'h1 a',
+                '.title a',
+                'a[href*="story"]',
+                'a[href*="article"]'
+            ]
+            
+            for selector in selectors:
+                links = soup.select(selector)
+                logger.info(f"Requests selector '{selector}': Found {len(links)} links")
+                
+                if links:
+                    for link in links:
+                        href = link.get('href')
+                        if href:
+                            full_url = urljoin(self.base_url, href)
+                            title = link.get_text(strip=True) or link.get('title', 'No title')
+                            
+                            if title and len(title) > 10:
+                                news_items.append({
+                                    'url': full_url,
+                                    'title': title
+                                })
+            
+            # Remove duplicates
+            seen_urls = set()
+            unique_items = []
+            for item in news_items:
+                if item['url'] not in seen_urls:
+                    seen_urls.add(item['url'])
+                    unique_items.append(item)
+            
+            logger.info(f"Requests method found {len(unique_items)} news articles")
+            return unique_items
+            
+        except Exception as e:
+            logger.error(f"Requests fallback failed: {e}")
+            return []
+    
     def fetch_news_links(self) -> List[Dict[str, str]]:
-        """Fetch news article links from the target page using Selenium."""
+        """Fetch news article links from the target page using Selenium with requests fallback."""
+        # Try Selenium first
         driver = None
         try:
-            logger.info("Creating WebDriver for news extraction...")
+            logger.info("Attempting Selenium method for news extraction...")
             driver = self.create_webdriver()
             
             logger.info(f"Loading page: {self.target_url}")
@@ -371,13 +466,16 @@ class SPANewsMonitor:
             
         except TimeoutException:
             logger.error("Timeout waiting for page to load")
-            return []
+            logger.info("Falling back to requests method...")
+            return self.fetch_news_links_with_requests()
         except WebDriverException as e:
             logger.error(f"WebDriver error: {e}")
-            return []
+            logger.info("Falling back to requests method...")
+            return self.fetch_news_links_with_requests()
         except Exception as e:
-            logger.error(f"Unexpected error in fetch_news_links: {e}")
-            return []
+            logger.error(f"Selenium method failed: {e}")
+            logger.info("Falling back to requests method...")
+            return self.fetch_news_links_with_requests()
         finally:
             if driver:
                 try:
