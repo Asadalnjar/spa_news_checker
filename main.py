@@ -102,7 +102,7 @@ class SPANewsMonitor:
     def get_env_config(self) -> Dict:
         """Get configuration from environment variables."""
         return {
-            'target_url': os.getenv('TARGET_URL', 'https://www.spa.gov.sa/en/news/latest-news?page=1'),
+            'target_url': os.getenv('TARGET_URL', 'https://www.youm7.com/Section/%D8%A3%D8%AE%D8%A8%D8%A7%D8%B1-%D8%B9%D8%A7%D8%AC%D9%84%D8%A9/65/1'),
             'database_path': os.getenv('DATABASE_PATH', 'news_monitor.db'),
             'openai_api_key': os.getenv('OPENAI_API_KEY'),
             'openai_model': os.getenv('OPENAI_MODEL', 'gpt-3.5-turbo'),

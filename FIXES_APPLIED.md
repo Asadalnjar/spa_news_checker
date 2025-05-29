@@ -5,7 +5,7 @@
 ### 1. تضارب في URL المستهدف
 **المشكلة**: كان هناك تضارب بين URL في ملف التكوين (BBC Arabic) و URL في السجلات (SPA)
 **الحل**: 
-- تم تحديث `config.json` ليستهدف `https://www.spa.gov.sa/en/news/latest-news?page=1`
+- تم تحديث `config.json` ليستهدف `https://www.youm7.com/Section/%D8%A3%D8%AE%D8%A8%D8%A7%D8%B1-%D8%B9%D8%A7%D8%AC%D9%84%D8%A9/65/1`
 - تم تحديث `render.yaml` ليستهدف نفس URL
 - تم تحديث القيم الافتراضية في `main.py`
 

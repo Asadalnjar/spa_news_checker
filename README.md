@@ -98,7 +98,7 @@ For Gmail (recommended):
 
 ```json
 {
-  "target_url": "https://www.spa.gov.sa/en/news/latest-news?page=1",
+  "target_url": "https://www.youm7.com/Section/%D8%A3%D8%AE%D8%A8%D8%A7%D8%B1-%D8%B9%D8%A7%D8%AC%D9%84%D8%A9/65/1",
   "database_path": "news_monitor.db",
   "openai_api_key": "your-openai-api-key",
   "openai_model": "gpt-3.5-turbo",
