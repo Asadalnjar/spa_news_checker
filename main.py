@@ -149,9 +149,13 @@ class SPANewsMonitor:
             if not driver:
                 try:
                     logger.info("Trying ChromeDriverManager without specific binary")
-                    chrome_options.binary_location = None  # Let Chrome find itself
+                    # Create new options without binary_location
+                    fallback_options = Options()
+                    for arg in chrome_options.arguments:
+                        fallback_options.add_argument(arg)
+                    
                     service = Service(ChromeDriverManager().install())
-                    driver = webdriver.Chrome(service=service, options=chrome_options)
+                    driver = webdriver.Chrome(service=service, options=fallback_options)
                     logger.info("WebDriver created with ChromeDriverManager")
                 except Exception as e:
                     logger.error(f"ChromeDriverManager failed: {e}")
@@ -299,8 +303,9 @@ class SPANewsMonitor:
             # Find news article links
             news_items = []
             
-            # Try various selectors
+            # Try various selectors - start with most general
             selectors = [
+                'a',  # All links first
                 'a[href*="/viewfullstory/"]',
                 'a[href*="/news/"]',
                 '.news-item a',
@@ -313,22 +318,59 @@ class SPANewsMonitor:
                 'a[href*="article"]'
             ]
             
-            for selector in selectors:
-                links = soup.select(selector)
-                logger.info(f"Requests selector '{selector}': Found {len(links)} links")
+            # First, let's see what we can find
+            all_links = soup.find_all('a', href=True)
+            logger.info(f"Total links found on page: {len(all_links)}")
+            
+            # Log some sample links for debugging
+            sample_links = []
+            for i, link in enumerate(all_links[:10]):
+                href = link.get('href', '')
+                text = link.get_text(strip=True)[:50]
+                sample_links.append(f"{i+1}. {href} - {text}")
+            
+            if sample_links:
+                logger.info("Sample links found:")
+                for sample in sample_links:
+                    logger.info(f"  {sample}")
+            
+            # Now try to find news-related links
+            for link in all_links:
+                href = link.get('href', '')
+                title = link.get_text(strip=True)
                 
-                if links:
-                    for link in links:
-                        href = link.get('href')
-                        if href:
-                            full_url = urljoin(self.base_url, href)
-                            title = link.get_text(strip=True) or link.get('title', 'No title')
-                            
-                            if title and len(title) > 10:
-                                news_items.append({
-                                    'url': full_url,
-                                    'title': title
-                                })
+                if href and title:
+                    # Convert relative URLs to absolute
+                    full_url = urljoin(self.base_url, href)
+                    
+                    # Look for any links that might be news articles
+                    # Be more permissive in filtering
+                    if (len(title) > 5 and
+                        (any(keyword in href.lower() for keyword in ['news', 'story', 'article', 'viewfullstory', 'spa.gov.sa']) or
+                         any(keyword in title.lower() for keyword in ['news', 'report', 'statement', 'announcement']))):
+                        news_items.append({
+                            'url': full_url,
+                            'title': title
+                        })
+            
+            # If still no items, try the specific selectors
+            if not news_items:
+                for selector in selectors[1:]:  # Skip 'a' since we already tried all links
+                    links = soup.select(selector)
+                    logger.info(f"Requests selector '{selector}': Found {len(links)} links")
+                    
+                    if links:
+                        for link in links:
+                            href = link.get('href')
+                            if href:
+                                full_url = urljoin(self.base_url, href)
+                                title = link.get_text(strip=True) or link.get('title', 'No title')
+                                
+                                if title and len(title) > 5:
+                                    news_items.append({
+                                        'url': full_url,
+                                        'title': title
+                                    })
             
             # Remove duplicates
             seen_urls = set()
