@@ -36,7 +36,7 @@ def setup_config():
         print("Found existing configuration. You can update the values below.")
     else:
         config = {
-            "target_url": "https://www.spa.gov.sa/en/news/latest-news?page=1",
+            "target_url": "https://www.bbc.com/arabic",
             "database_path": "news_monitor.db",
             "openai_api_key": "",
             "openai_model": "gpt-3.5-turbo",

@@ -73,7 +73,7 @@ In the Render dashboard, add these environment variables:
 | `EMAIL_TO` | `recipient@gmail.com` | Recipient email address |
 | `SMTP_SERVER` | `smtp.gmail.com` | SMTP server (default) |
 | `SMTP_PORT` | `587` | SMTP port (default) |
-| `TARGET_URL` | `https://www.spa.gov.sa/en/news/latest-news?page=1' | Target URL (default) |
+| `TARGET_URL` | `https://www.bbc.com/arabic' | Target URL (default) |
 | `OPENAI_MODEL` | `gpt-3.5-turbo` | OpenAI model (default) |
 | `CHECK_INTERVAL_MINUTES` | `20` | Check interval (default) |
 
