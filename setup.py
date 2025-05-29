@@ -36,10 +36,10 @@ def setup_config():
         print("Found existing configuration. You can update the values below.")
     else:
         config = {
-            "target_url": "https://www.bbc.com/arabic",
+            "target_url": "https://www.spa.gov.sa/en/news/latest-news?page=1",
             "database_path": "news_monitor.db",
             "openai_api_key": "",
-            "openai_model": "gpt-3.5-turbo",
+            "openai_model": "gpt-4.1",
             "email": {
                 "smtp_server": "smtp.gmail.com",
                 "smtp_port": 587,
@@ -55,7 +55,7 @@ def setup_config():
     if api_key:
         config['openai_api_key'] = api_key
     
-    model = input(f"Enter OpenAI model [{config.get('openai_model', 'gpt-3.5-turbo')}]: ").strip()
+    model = input(f"Enter OpenAI model [{config.get('openai_model', 'gpt-4.1')}]: ").strip()
     if model:
         config['openai_model'] = model
     

@@ -16,7 +16,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 try:
     from main import SPANewsMonitor
-    import openai
+    from openai import OpenAI
     from bs4 import BeautifulSoup
 except ImportError as e:
     print(f"Import error: {e}")
@@ -134,18 +134,15 @@ class TestSPANewsMonitor:
                 self.log_test("OpenAI API Key", False, "API key not configured")
                 return False
             
-            openai.api_key = api_key
+            client = OpenAI(api_key=api_key)
             
             # Test with a simple request
-            response = openai.ChatCompletion.create(
-                model=config.get('openai_model', 'gpt-3.5-turbo'),
-                messages=[
-                    {"role": "user", "content": "Test message. Reply with 'OK' if you receive this."}
-                ],
-                max_tokens=10
+            response = client.responses.create(
+                model=config.get('openai_model', 'gpt-4.1'),
+                input="Test message. Reply with 'OK' if you receive this."
             )
             
-            if response.choices[0].message.content:
+            if response.output_text:
                 self.log_test("OpenAI API Connection", True)
                 return True
             else:

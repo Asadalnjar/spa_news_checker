@@ -19,7 +19,7 @@ from email.mime.multipart import MIMEMultipart
 from typing import List, Dict, Optional, Tuple
 from urllib.parse import urljoin, urlparse
 
-import openai
+from openai import OpenAI
 from bs4 import BeautifulSoup
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.interval import IntervalTrigger
@@ -55,7 +55,7 @@ class SPANewsMonitor:
         self.check_interval = self.config.get('check_interval_minutes', 20)
         
         # Initialize OpenAI client
-        openai.api_key = self.config['openai_api_key']
+        self.openai_client = OpenAI(api_key=self.config['openai_api_key'])
         
         # Initialize database
         self.init_database()
@@ -102,11 +102,11 @@ class SPANewsMonitor:
     def get_env_config(self) -> Dict:
         """Get configuration from environment variables."""
         return {
-            'target_url': os.getenv('TARGET_URL', 'https://www.bbc.com/arabic'),
+            'target_url': os.getenv('TARGET_URL', 'https://www.spa.gov.sa/en/news/latest-news?page=1'),
             'database_path': os.getenv('DATABASE_PATH', 'news_monitor.db'),
             'openai_api_key': os.getenv('OPENAI_API_KEY'),
             'openai_model': os.getenv('OPENAI_MODEL', 'gpt-3.5-turbo'),
-            'check_interval_minutes': int(os.getenv('CHECK_INTERVAL_MINUTES', '20')),
+            'check_interval_minutes': int(os.getenv('CHECK_INTERVAL_MINUTES', '60')),
             'email': {
                 'smtp_server': os.getenv('SMTP_SERVER', 'smtp.gmail.com'),
                 'smtp_port': int(os.getenv('SMTP_PORT', '587')),
@@ -178,7 +178,12 @@ class SPANewsMonitor:
         """Fetch news article links from the target page."""
         try:
             headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1'
             }
             
             response = requests.get(self.target_url, headers=headers, timeout=30)
@@ -186,20 +191,28 @@ class SPANewsMonitor:
             
             soup = BeautifulSoup(response.content, 'html.parser')
             
-            # Find news article links - adjust selectors based on actual HTML structure
+            # Find news article links - SPA specific selectors
             news_items = []
             
-            # Common selectors for news articles (may need adjustment)
-            article_selectors = [
-                'article a[href*="/news/"]',
-                '.news-item a',
-                '.article-link',
-                'a[href*="/viewfullstory/"]',
-                '.news-list a'
+            # SPA website specific selectors
+            spa_selectors = [
+                'a[href*="/viewfullstory/"]',  # SPA specific story links
+                'a[href*="/news/"]',           # General news links
+                '.news-item a',                # News item containers
+                '.article-title a',            # Article title links
+                '.story-link',                 # Story links
+                'h3 a',                        # Headlines in h3 tags
+                'h2 a',                        # Headlines in h2 tags
+                '.title a',                    # Title links
+                'a[href*="story"]',            # Any link containing "story"
+                'a[href*="article"]'           # Any link containing "article"
             ]
             
-            for selector in article_selectors:
+            # Try each selector
+            for selector in spa_selectors:
                 links = soup.select(selector)
+                logger.info(f"Selector '{selector}': Found {len(links)} links")
+                
                 if links:
                     for link in links:
                         href = link.get('href')
@@ -208,11 +221,30 @@ class SPANewsMonitor:
                             full_url = urljoin(self.base_url, href)
                             title = link.get_text(strip=True) or link.get('title', 'No title')
                             
+                            # Filter out empty titles and non-news links
+                            if title and len(title) > 10 and 'news' in full_url.lower():
+                                news_items.append({
+                                    'url': full_url,
+                                    'title': title
+                                })
+            
+            # If no specific selectors work, try to find any links that might be news
+            if not news_items:
+                logger.info("No items found with specific selectors, trying general approach...")
+                all_links = soup.find_all('a', href=True)
+                
+                for link in all_links:
+                    href = link.get('href', '')
+                    title = link.get_text(strip=True)
+                    
+                    # Look for news-related URLs
+                    if any(keyword in href.lower() for keyword in ['news', 'story', 'article', 'viewfullstory']):
+                        full_url = urljoin(self.base_url, href)
+                        if title and len(title) > 10:
                             news_items.append({
                                 'url': full_url,
                                 'title': title
                             })
-                    break  # Use first successful selector
             
             # Remove duplicates
             seen_urls = set()
@@ -223,6 +255,11 @@ class SPANewsMonitor:
                     unique_items.append(item)
             
             logger.info(f"Found {len(unique_items)} news articles")
+            
+            # Log first few items for debugging
+            for i, item in enumerate(unique_items[:3]):
+                logger.info(f"Article {i+1}: {item['title'][:50]}... - {item['url']}")
+            
             return unique_items
             
         except requests.RequestException as e:
@@ -236,7 +273,12 @@ class SPANewsMonitor:
         """Extract the main content from a news article."""
         try:
             headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1'
             }
             
             response = requests.get(url, headers=headers, timeout=30)
@@ -245,46 +287,94 @@ class SPANewsMonitor:
             soup = BeautifulSoup(response.content, 'html.parser')
             
             # Remove unwanted elements
-            for element in soup(['script', 'style', 'nav', 'header', 'footer', 'aside']):
+            for element in soup(['script', 'style', 'nav', 'header', 'footer', 'aside', 'menu', 'form']):
                 element.decompose()
             
-            # Common selectors for article content
-            content_selectors = [
+            # SPA specific selectors for article content
+            spa_content_selectors = [
+                '.story-content',
                 '.article-content',
                 '.news-content',
-                '.story-content',
+                '.content-body',
+                '.story-body',
+                '.article-body',
+                '.news-body',
+                '.main-content',
                 '.post-content',
                 'article .content',
-                '.main-content',
-                '#content'
+                '#content',
+                '.text-content',
+                '.story-text'
             ]
             
             content = None
-            for selector in content_selectors:
+            for selector in spa_content_selectors:
                 element = soup.select_one(selector)
                 if element:
                     content = element.get_text(strip=True)
+                    logger.info(f"Content extracted using selector: {selector}")
                     break
             
-            # Fallback: try to find the largest text block
+            # Fallback: try to find content in div with specific classes
+            if not content:
+                content_divs = soup.find_all('div', class_=lambda x: x and any(
+                    keyword in x.lower() for keyword in ['content', 'story', 'article', 'text', 'body']
+                ))
+                if content_divs:
+                    # Get the div with most text content
+                    best_div = max(content_divs, key=lambda div: len(div.get_text(strip=True)))
+                    content = best_div.get_text(strip=True)
+                    logger.info("Content extracted from content div")
+            
+            # Fallback: try to find the largest text block from paragraphs
             if not content:
                 paragraphs = soup.find_all('p')
                 if paragraphs:
-                    content = ' '.join([p.get_text(strip=True) for p in paragraphs])
+                    # Filter paragraphs with meaningful content
+                    meaningful_paragraphs = [p.get_text(strip=True) for p in paragraphs if len(p.get_text(strip=True)) > 20]
+                    if meaningful_paragraphs:
+                        content = ' '.join(meaningful_paragraphs)
+                        logger.info("Content extracted from paragraphs")
             
-            # Final fallback: get all text
+            # Final fallback: get all text but filter out navigation and menu items
             if not content:
+                # Remove common navigation elements
+                for nav_element in soup.find_all(['nav', 'menu', 'ul', 'ol'], class_=lambda x: x and any(
+                    keyword in x.lower() for keyword in ['nav', 'menu', 'breadcrumb', 'sidebar']
+                )):
+                    nav_element.decompose()
+                
                 content = soup.get_text(strip=True)
+                logger.info("Content extracted using fallback method")
             
             # Clean up content
             if content:
-                # Remove extra whitespace
+                # Remove extra whitespace and line breaks
                 content = ' '.join(content.split())
+                
+                # Remove common unwanted phrases
+                unwanted_phrases = [
+                    'Skip to main content',
+                    'Cookie Policy',
+                    'Privacy Policy',
+                    'Terms of Service',
+                    'Subscribe to newsletter',
+                    'Follow us on',
+                    'Share this article'
+                ]
+                
+                for phrase in unwanted_phrases:
+                    content = content.replace(phrase, '')
+                
                 # Limit content length for API efficiency
                 if len(content) > 4000:
                     content = content[:4000] + "..."
-            
-            return content
+                
+                logger.info(f"Extracted content length: {len(content)} characters")
+                return content
+            else:
+                logger.warning("No content could be extracted")
+                return None
             
         except requests.RequestException as e:
             logger.error(f"Error fetching article content from {url}: {e}")
@@ -302,17 +392,12 @@ class SPANewsMonitor:
                 "If there are any mistakes, reply: Caution, and list all found mistakes."
             )
             
-            response = openai.ChatCompletion.create(
-                model=self.config.get('openai_model', 'gpt-3.5-turbo'),
-                messages=[
-                    {"role": "system", "content": prompt},
-                    {"role": "user", "content": content}
-                ],
-                max_tokens=500,
-                temperature=0.1
+            response = self.openai_client.responses.create(
+                model=self.config.get('openai_model', 'gpt-4.1'),
+                input=f"{prompt}\n\nContent to check: {content}"
             )
             
-            result = response.choices[0].message.content.strip()
+            result = response.output_text.strip()
             
             if result.upper().startswith('OK'):
                 return 'OK', ''
