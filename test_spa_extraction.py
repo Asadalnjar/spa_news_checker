@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Simple test script to verify SPA news extraction functionality.
+Simple test script to verify SPA news extraction functionality with Selenium.
 """
 
 import sys
@@ -12,9 +12,12 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 try:
     from main import SPANewsMonitor
     import json
+    from selenium import webdriver
+    from selenium.webdriver.chrome.options import Options
 except ImportError as e:
     print(f"Import error: {e}")
     print("Please install dependencies: pip install -r requirements.txt")
+    print("Make sure to install: selenium, webdriver-manager")
     sys.exit(1)
 
 def test_spa_extraction():
@@ -25,7 +28,7 @@ def test_spa_extraction():
     try:
         # Create a minimal config for testing
         test_config = {
-            'target_url': 'https://www.youm7.com/Section/%D8%A3%D8%AE%D8%A8%D8%A7%D8%B1-%D8%B9%D8%A7%D8%AC%D9%84%D8%A9/65/1',
+            'target_url': 'https://www.spa.gov.sa/en/news/latest-news?page=1',
             'database_path': 'test_news_monitor.db',
             'openai_api_key': 'test-key',  # Not used in this test
             'openai_model': 'gpt-4.1',

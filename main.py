@@ -24,6 +24,16 @@ from bs4 import BeautifulSoup
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
+# Selenium imports
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.common.exceptions import TimeoutException, WebDriverException
+
 # Import health check server for cloud deployment
 try:
     from health_check import run_health_server_background
@@ -67,6 +77,73 @@ class SPANewsMonitor:
         logger.info(f"Target URL: {self.target_url}")
         logger.info(f"Check interval: {self.check_interval} minutes")
     
+    def create_webdriver(self) -> webdriver.Chrome:
+        """Create and configure Chrome WebDriver for cloud deployment."""
+        try:
+            chrome_options = Options()
+            
+            # Essential options for cloud deployment
+            chrome_options.add_argument('--headless')
+            chrome_options.add_argument('--no-sandbox')
+            chrome_options.add_argument('--disable-dev-shm-usage')
+            chrome_options.add_argument('--disable-gpu')
+            chrome_options.add_argument('--window-size=1920,1080')
+            chrome_options.add_argument('--disable-extensions')
+            chrome_options.add_argument('--disable-plugins')
+            chrome_options.add_argument('--disable-images')
+            chrome_options.add_argument('--disable-javascript-harmony-shipping')
+            chrome_options.add_argument('--disable-background-timer-throttling')
+            chrome_options.add_argument('--disable-renderer-backgrounding')
+            chrome_options.add_argument('--disable-backgrounding-occluded-windows')
+            chrome_options.add_argument('--disable-client-side-phishing-detection')
+            chrome_options.add_argument('--disable-crash-reporter')
+            chrome_options.add_argument('--disable-oopr-debug-crash-dump')
+            chrome_options.add_argument('--no-crash-upload')
+            chrome_options.add_argument('--disable-low-res-tiling')
+            chrome_options.add_argument('--log-level=3')
+            chrome_options.add_argument('--silent')
+            
+            # User agent
+            chrome_options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
+            
+            # Try to use system Chrome first, fallback to ChromeDriverManager
+            try:
+                # For cloud deployment, try common Chrome paths
+                chrome_paths = [
+                    '/usr/bin/google-chrome',
+                    '/usr/bin/chromium-browser',
+                    '/usr/bin/chromium',
+                    '/opt/google/chrome/chrome'
+                ]
+                
+                chrome_binary = None
+                for path in chrome_paths:
+                    if os.path.exists(path):
+                        chrome_binary = path
+                        break
+                
+                if chrome_binary:
+                    chrome_options.binary_location = chrome_binary
+                    service = Service()
+                else:
+                    # Fallback to ChromeDriverManager
+                    service = Service(ChromeDriverManager().install())
+                
+                driver = webdriver.Chrome(service=service, options=chrome_options)
+                driver.set_page_load_timeout(30)
+                driver.implicitly_wait(10)
+                
+                logger.info("WebDriver created successfully")
+                return driver
+                
+            except Exception as e:
+                logger.error(f"Error creating WebDriver: {e}")
+                raise
+                
+        except Exception as e:
+            logger.error(f"Failed to create WebDriver: {e}")
+            raise
+    
     def load_config(self, config_file: str) -> Dict:
         """Load configuration from JSON file or environment variables."""
         # First try to load from environment variables (for cloud deployment)
@@ -102,7 +179,7 @@ class SPANewsMonitor:
     def get_env_config(self) -> Dict:
         """Get configuration from environment variables."""
         return {
-            'target_url': os.getenv('TARGET_URL', 'https://www.youm7.com/Section/%D8%A3%D8%AE%D8%A8%D8%A7%D8%B1-%D8%B9%D8%A7%D8%AC%D9%84%D8%A9/65/1'),
+            'target_url': os.getenv('TARGET_URL', 'https://www.spa.gov.sa/en/news/latest-news?page=1'),
             'database_path': os.getenv('DATABASE_PATH', 'news_monitor.db'),
             'openai_api_key': os.getenv('OPENAI_API_KEY'),
             'openai_model': os.getenv('OPENAI_MODEL', 'gpt-3.5-turbo'),
@@ -175,26 +252,33 @@ class SPANewsMonitor:
             logger.error(f"Database insert error: {e}")
     
     def fetch_news_links(self) -> List[Dict[str, str]]:
-        """Fetch news article links from the target page."""
+        """Fetch news article links from the target page using Selenium."""
+        driver = None
         try:
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                'Accept-Language': 'en-US,en;q=0.5',
-                'Accept-Encoding': 'gzip, deflate, br',
-                'Connection': 'keep-alive',
-                'Upgrade-Insecure-Requests': '1'
-            }
+            logger.info("Creating WebDriver for news extraction...")
+            driver = self.create_webdriver()
             
-            response = requests.get(self.target_url, headers=headers, timeout=30)
-            response.raise_for_status()
+            logger.info(f"Loading page: {self.target_url}")
+            driver.get(self.target_url)
             
-            soup = BeautifulSoup(response.content, 'html.parser')
+            # Wait for page to load
+            WebDriverWait(driver, 20).until(
+                EC.presence_of_element_located((By.TAG_NAME, "body"))
+            )
+            
+            # Additional wait for dynamic content
+            time.sleep(5)
+            
+            # Get page source after JavaScript execution
+            page_source = driver.page_source
+            soup = BeautifulSoup(page_source, 'html.parser')
+            
+            logger.info("Page loaded successfully, extracting news links...")
             
             # Find news article links - SPA specific selectors
             news_items = []
             
-            # SPA website specific selectors
+            # SPA website specific selectors (updated for dynamic content)
             spa_selectors = [
                 'a[href*="/viewfullstory/"]',  # SPA specific story links
                 'a[href*="/news/"]',           # General news links
@@ -203,48 +287,71 @@ class SPANewsMonitor:
                 '.story-link',                 # Story links
                 'h3 a',                        # Headlines in h3 tags
                 'h2 a',                        # Headlines in h2 tags
+                'h1 a',                        # Headlines in h1 tags
                 '.title a',                    # Title links
+                '.headline a',                 # Headline links
+                '.news-title a',               # News title links
                 'a[href*="story"]',            # Any link containing "story"
-                'a[href*="article"]'           # Any link containing "article"
+                'a[href*="article"]',          # Any link containing "article"
+                '.card a',                     # Card-based layouts
+                '.item a',                     # Item-based layouts
+                'article a'                    # Article elements
             ]
             
             # Try each selector
             for selector in spa_selectors:
-                links = soup.select(selector)
-                logger.info(f"Selector '{selector}': Found {len(links)} links")
-                
-                if links:
-                    for link in links:
-                        href = link.get('href')
-                        if href:
-                            # Convert relative URLs to absolute
-                            full_url = urljoin(self.base_url, href)
-                            title = link.get_text(strip=True) or link.get('title', 'No title')
-                            
-                            # Filter out empty titles and non-news links
-                            if title and len(title) > 10 and 'news' in full_url.lower():
-                                news_items.append({
-                                    'url': full_url,
-                                    'title': title
-                                })
+                try:
+                    elements = driver.find_elements(By.CSS_SELECTOR, selector)
+                    logger.info(f"Selector '{selector}': Found {len(elements)} elements")
+                    
+                    if elements:
+                        for element in elements:
+                            try:
+                                href = element.get_attribute('href')
+                                title = element.text.strip() or element.get_attribute('title') or 'No title'
+                                
+                                if href and title:
+                                    # Convert relative URLs to absolute
+                                    full_url = urljoin(self.base_url, href)
+                                    
+                                    # Filter out empty titles and non-news links
+                                    if len(title) > 10 and any(keyword in full_url.lower() for keyword in ['news', 'story', 'article', 'viewfullstory']):
+                                        news_items.append({
+                                            'url': full_url,
+                                            'title': title
+                                        })
+                            except Exception as e:
+                                logger.debug(f"Error processing element: {e}")
+                                continue
+                except Exception as e:
+                    logger.debug(f"Error with selector '{selector}': {e}")
+                    continue
             
             # If no specific selectors work, try to find any links that might be news
             if not news_items:
                 logger.info("No items found with specific selectors, trying general approach...")
-                all_links = soup.find_all('a', href=True)
-                
-                for link in all_links:
-                    href = link.get('href', '')
-                    title = link.get_text(strip=True)
+                try:
+                    all_links = driver.find_elements(By.TAG_NAME, "a")
+                    logger.info(f"Found {len(all_links)} total links")
                     
-                    # Look for news-related URLs
-                    if any(keyword in href.lower() for keyword in ['news', 'story', 'article', 'viewfullstory']):
-                        full_url = urljoin(self.base_url, href)
-                        if title and len(title) > 10:
-                            news_items.append({
-                                'url': full_url,
-                                'title': title
-                            })
+                    for link in all_links:
+                        try:
+                            href = link.get_attribute('href') or ''
+                            title = link.text.strip()
+                            
+                            # Look for news-related URLs
+                            if href and title and any(keyword in href.lower() for keyword in ['news', 'story', 'article', 'viewfullstory']):
+                                full_url = urljoin(self.base_url, href)
+                                if len(title) > 10:
+                                    news_items.append({
+                                        'url': full_url,
+                                        'title': title
+                                    })
+                        except Exception as e:
+                            logger.debug(f"Error processing link: {e}")
+                            continue
+                except Exception as e:
+                    logger.error(f"Error in general approach: {e}")
             
             # Remove duplicates
             seen_urls = set()
@@ -254,7 +361,7 @@ class SPANewsMonitor:
                     seen_urls.add(item['url'])
                     unique_items.append(item)
             
-            logger.info(f"Found {len(unique_items)} news articles")
+            logger.info(f"Found {len(unique_items)} unique news articles")
             
             # Log first few items for debugging
             for i, item in enumerate(unique_items[:3]):
@@ -262,29 +369,43 @@ class SPANewsMonitor:
             
             return unique_items
             
-        except requests.RequestException as e:
-            logger.error(f"Error fetching news links: {e}")
+        except TimeoutException:
+            logger.error("Timeout waiting for page to load")
+            return []
+        except WebDriverException as e:
+            logger.error(f"WebDriver error: {e}")
             return []
         except Exception as e:
             logger.error(f"Unexpected error in fetch_news_links: {e}")
             return []
+        finally:
+            if driver:
+                try:
+                    driver.quit()
+                    logger.info("WebDriver closed successfully")
+                except Exception as e:
+                    logger.error(f"Error closing WebDriver: {e}")
     
     def extract_article_content(self, url: str) -> Optional[str]:
-        """Extract the main content from a news article."""
+        """Extract the main content from a news article using Selenium."""
+        driver = None
         try:
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                'Accept-Language': 'en-US,en;q=0.5',
-                'Accept-Encoding': 'gzip, deflate, br',
-                'Connection': 'keep-alive',
-                'Upgrade-Insecure-Requests': '1'
-            }
+            logger.info(f"Extracting content from: {url}")
+            driver = self.create_webdriver()
             
-            response = requests.get(url, headers=headers, timeout=30)
-            response.raise_for_status()
+            driver.get(url)
             
-            soup = BeautifulSoup(response.content, 'html.parser')
+            # Wait for page to load
+            WebDriverWait(driver, 20).until(
+                EC.presence_of_element_located((By.TAG_NAME, "body"))
+            )
+            
+            # Additional wait for dynamic content
+            time.sleep(3)
+            
+            # Get page source after JavaScript execution
+            page_source = driver.page_source
+            soup = BeautifulSoup(page_source, 'html.parser')
             
             # Remove unwanted elements
             for element in soup(['script', 'style', 'nav', 'header', 'footer', 'aside', 'menu', 'form']):
@@ -304,16 +425,38 @@ class SPANewsMonitor:
                 'article .content',
                 '#content',
                 '.text-content',
-                '.story-text'
+                '.story-text',
+                '.article-text',
+                '.news-text'
             ]
             
             content = None
-            for selector in spa_content_selectors:
-                element = soup.select_one(selector)
-                if element:
-                    content = element.get_text(strip=True)
-                    logger.info(f"Content extracted using selector: {selector}")
-                    break
+            
+            # Try Selenium-based extraction first
+            try:
+                for selector in spa_content_selectors:
+                    try:
+                        elements = driver.find_elements(By.CSS_SELECTOR, selector)
+                        if elements:
+                            content = elements[0].text.strip()
+                            if content and len(content) > 50:
+                                logger.info(f"Content extracted using Selenium selector: {selector}")
+                                break
+                    except Exception as e:
+                        logger.debug(f"Error with Selenium selector '{selector}': {e}")
+                        continue
+            except Exception as e:
+                logger.debug(f"Error in Selenium extraction: {e}")
+            
+            # Fallback to BeautifulSoup extraction
+            if not content:
+                for selector in spa_content_selectors:
+                    element = soup.select_one(selector)
+                    if element:
+                        content = element.get_text(strip=True)
+                        if content and len(content) > 50:
+                            logger.info(f"Content extracted using BeautifulSoup selector: {selector}")
+                            break
             
             # Fallback: try to find content in div with specific classes
             if not content:
@@ -324,7 +467,8 @@ class SPANewsMonitor:
                     # Get the div with most text content
                     best_div = max(content_divs, key=lambda div: len(div.get_text(strip=True)))
                     content = best_div.get_text(strip=True)
-                    logger.info("Content extracted from content div")
+                    if content and len(content) > 50:
+                        logger.info("Content extracted from content div")
             
             # Fallback: try to find the largest text block from paragraphs
             if not content:
@@ -334,7 +478,8 @@ class SPANewsMonitor:
                     meaningful_paragraphs = [p.get_text(strip=True) for p in paragraphs if len(p.get_text(strip=True)) > 20]
                     if meaningful_paragraphs:
                         content = ' '.join(meaningful_paragraphs)
-                        logger.info("Content extracted from paragraphs")
+                        if content and len(content) > 50:
+                            logger.info("Content extracted from paragraphs")
             
             # Final fallback: get all text but filter out navigation and menu items
             if not content:
@@ -345,7 +490,8 @@ class SPANewsMonitor:
                     nav_element.decompose()
                 
                 content = soup.get_text(strip=True)
-                logger.info("Content extracted using fallback method")
+                if content and len(content) > 50:
+                    logger.info("Content extracted using fallback method")
             
             # Clean up content
             if content:
@@ -360,7 +506,11 @@ class SPANewsMonitor:
                     'Terms of Service',
                     'Subscribe to newsletter',
                     'Follow us on',
-                    'Share this article'
+                    'Share this article',
+                    'Advertisement',
+                    'إعلان',
+                    'تابعنا على',
+                    'شارك المقال'
                 ]
                 
                 for phrase in unwanted_phrases:
@@ -376,12 +526,21 @@ class SPANewsMonitor:
                 logger.warning("No content could be extracted")
                 return None
             
-        except requests.RequestException as e:
-            logger.error(f"Error fetching article content from {url}: {e}")
+        except TimeoutException:
+            logger.error(f"Timeout extracting content from {url}")
+            return None
+        except WebDriverException as e:
+            logger.error(f"WebDriver error extracting content from {url}: {e}")
             return None
         except Exception as e:
             logger.error(f"Unexpected error extracting content from {url}: {e}")
             return None
+        finally:
+            if driver:
+                try:
+                    driver.quit()
+                except Exception as e:
+                    logger.error(f"Error closing WebDriver: {e}")
     
     def check_grammar_with_chatgpt(self, content: str) -> Tuple[str, str]:
         """Check grammar and spelling using ChatGPT API."""

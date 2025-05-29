@@ -9,7 +9,7 @@ import json
 
 def test_spa_scraping():
     """Test scraping the SPA news website."""
-    url = "https://www.youm7.com/Section/%D8%A3%D8%AE%D8%A8%D8%A7%D8%B1-%D8%B9%D8%A7%D8%AC%D9%84%D8%A9/65/1"
+    url = "https://www.spa.gov.sa/en/news/latest-news?page=1"
     
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
