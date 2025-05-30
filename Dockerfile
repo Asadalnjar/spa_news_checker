@@ -1,7 +1,7 @@
-# استخدم صورة Python الرسمية كأساس
+# 1. صورة Python الرسمية
 FROM python:3.10-slim
 
-# تثبيت أدوات النظام الأساسية والاعتماديات اللازمة لـ Chrome وSelenium
+# 2. تثبيت أدوات النظام الأساسية
 RUN apt-get update && apt-get install -y \
     wget \
     curl \
@@ -11,34 +11,41 @@ RUN apt-get update && apt-get install -y \
     libxss1 \
     libappindicator3-1 \
     libasound2 \
-    fonts-liberation \
     libatk-bridge2.0-0 \
     libgtk-3-0 \
     libgbm-dev \
     libu2f-udev \
     libvulkan1 \
     xdg-utils \
+    fonts-liberation \
+    ca-certificates \
     --no-install-recommends && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# تثبيت Google Chrome
-RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add - && \
-    sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list' && \
-    apt-get update && \
-    apt-get install -y google-chrome-stable && \
     rm -rf /var/lib/apt/lists/*
 
-# تعيين متغير بيئة لتجنب أخطاء الكروم
-ENV CHROME_BIN=/usr/bin/google-chrome
-ENV PATH="${PATH}:/usr/bin"
+# 3. تثبيت Google Chrome
+RUN wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
+    dpkg -i google-chrome-stable_current_amd64.deb || apt-get -fy install && \
+    rm google-chrome-stable_current_amd64.deb
 
-# تثبيت Selenium وباقي المكتبات
+# 4. تثبيت ChromeDriver المناسب تلقائيًا
+RUN CHROME_VERSION=$(google-chrome --version | grep -oP '\d+\.\d+\.\d+') && \
+    DRIVER_VERSION=$(curl -s "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_${CHROME_VERSION}") && \
+    wget -O /tmp/chromedriver.zip "https://chromedriver.storage.googleapis.com/${DRIVER_VERSION}/chromedriver_linux64.zip" && \
+    unzip /tmp/chromedriver.zip -d /usr/local/bin/ && \
+    chmod +x /usr/local/bin/chromedriver && \
+    rm /tmp/chromedriver.zip
+
+# 5. تعيين متغيرات البيئة
+ENV CHROME_BIN=/usr/bin/google-chrome
+ENV PATH="/usr/local/bin:$PATH"
+
+# 6. نسخ الاعتماديات وتثبيتها
 COPY requirements.txt .
 RUN pip install --upgrade pip && pip install -r requirements.txt
 
-# نسخ ملفات المشروع
+# 7. نسخ المشروع
 COPY . /app
 WORKDIR /app
 
-# الأمر الذي يتم تنفيذه عند بدء الحاوية
-CMD ["python", "main.py"]
+# 8. تشغيل التطبيق
+CMD ["bash", "start.sh"]
