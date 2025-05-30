@@ -99,19 +99,22 @@ def send_email(subject, body):
 
 # === تنفيذ المهمة ===
 def monitor_news():
-    print("🔍 Checking news updates...")
-    urls = get_latest_news_urls()
-    for i, url in enumerate(urls):
-        if not is_visited(url):
-            content = extract_news_content(url)
-            if content:
-                result = check_grammar(content)
-                status = "OK" if result == "OK" else "Caution"
-                email_body = f"News #{i+1}\n{url}\nStatus: {status}"
-                if status == "Caution":
-                    email_body += f"\nMistakes:\n{result}"
-                send_email(f"[SPA News Check] News #{i+1} - {status}", email_body)
-            mark_visited(url)
+    try:
+        print("🔍 Checking SPA news...")
+        urls = get_latest_news_urls()
+        for i, url in enumerate(urls):
+            if not is_visited(url):
+                content = extract_news_content(url)
+                if content:
+                    result = check_grammar(content)
+                    status = "OK" if result == "OK" else "Caution"
+                    body = f"News #{i+1}\n{url}\nStatus: {status}"
+                    if status == "Caution":
+                        body += f"\nMistakes:\n{result}"
+                    send_email(f"[SPA News Check] News #{i+1} - {status}", body)
+                mark_visited(url)
+    except Exception as e:
+        print(f"❌ Error in monitor_news(): {e}")
 
 # === الجدولة كل ساعة ===
 def run_scheduler():
