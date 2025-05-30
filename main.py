@@ -64,17 +64,16 @@ def get_latest_news_urls():
         driver.get(SPA_URL)
         time.sleep(5)
 
-        elements = driver.find_elements(By.CSS_SELECTOR, "a[href*='/en/news/']")
+        elements = driver.find_elements(By.CSS_SELECTOR, "a[href^='/en/news/']")
         urls = []
         for elem in elements:
             href = elem.get_attribute("href")
             if href:
-                # ✅ تصحيح بناء الرابط
-                if href.startswith("http"):
-                    full_url = href
-                else:
-                    full_url = "https://www.spa.gov.sa" + href
-                urls.append(full_url)
+                # التأكد أن الرابط يشير إلى خبر فعلي وليس صفحة تصنيف
+                parts = href.strip().split("/")
+                if parts[-1].isdigit():  # آخر جزء هو رقم ID للخبر
+                    full_url = href if href.startswith("http") else "https://www.spa.gov.sa" + href
+                    urls.append(full_url)
 
         driver.quit()
         print(f"✅ [Selenium] Found {len(urls)} news URLs", flush=True)
