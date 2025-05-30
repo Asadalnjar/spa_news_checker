@@ -9,7 +9,7 @@ import time
 import os
 
 # === إعداد المفاتيح والبيئة ===
-SPA_URL = "https://www.spa.gov.sa/en/news/latest-news?page=4"
+SPA_URL = "https://www.spa.gov.sa/en/news/latest-news?page=1"
 openai.api_key = os.environ["OPENAI_API_KEY"]
 EMAIL_SENDER = os.environ["EMAIL_SENDER"]
 EMAIL_PASSWORD = os.environ["EMAIL_PASSWORD"]
