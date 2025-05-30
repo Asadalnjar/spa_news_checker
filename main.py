@@ -48,9 +48,10 @@ def get_latest_news_urls():
         soup = BeautifulSoup(res.text, "html.parser")
         articles = soup.select('a.text-decoration-none')
         urls = ["https://www.spa.gov.sa" + a["href"] for a in articles if "/en/news/" in a["href"]]
+        print(f"✅ Found {len(urls)} news URLs")
         return urls
     except Exception as e:
-        print(f"Error fetching news URLs: {e}")
+        print(f"❌ Error fetching news URLs: {e}")
         return []
 
 # === استخراج محتوى الخبر ===
@@ -61,7 +62,7 @@ def extract_news_content(url):
         body = soup.select_one("div.article-text")
         return body.get_text(separator="\n").strip() if body else ""
     except Exception as e:
-        print(f"Error extracting news: {e}")
+        print(f"❌ Error extracting news from {url}: {e}")
         return ""
 
 # === التحقق من الأخطاء اللغوية عبر ChatGPT ===
@@ -94,8 +95,9 @@ def send_email(subject, body):
             smtp.starttls()
             smtp.login(EMAIL_SENDER, EMAIL_PASSWORD)
             smtp.send_message(msg)
+        print(f"📧 Email sent: {subject}")
     except Exception as e:
-        print(f"Error sending email: {e}")
+        print(f"❌ Error sending email: {e}")
 
 # === تنفيذ المهمة ===
 def monitor_news():
@@ -104,6 +106,7 @@ def monitor_news():
         urls = get_latest_news_urls()
         for i, url in enumerate(urls):
             if not is_visited(url):
+                print(f"📰 New article: {url}")
                 content = extract_news_content(url)
                 if content:
                     result = check_grammar(content)
@@ -116,11 +119,12 @@ def monitor_news():
     except Exception as e:
         print(f"❌ Error in monitor_news(): {e}")
 
-# === الجدولة كل ساعة ===
+# === الجدولة والتشغيل ===
 def run_scheduler():
+    print("🟢 SPA News Monitor Service Started.")
     init_db()
+    monitor_news()  # تشغيل مباشر عند البدء
     schedule.every(1).hours.do(monitor_news)
-    print("✅ News monitor running every 1 hour...")
     while True:
         schedule.run_pending()
         time.sleep(10)
