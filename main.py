@@ -48,16 +48,16 @@ def get_latest_news_urls():
     try:
         res = requests.get(SPA_URL)
         soup = BeautifulSoup(res.text, "html.parser")
-        
-        # ✅ حدد المربعات التي تحتوي على الأخبار
-        cards = soup.select("div.news-item a[href^='/en/news/']")
-        
-        urls = ["https://www.spa.gov.sa" + a["href"] for a in cards]
+
+        # ✅ تحديد الروابط داخل بطاقات الأخبار بدقة
+        articles = soup.select("div.card-body a.text-dark[href^='/en/news/']")
+        urls = ["https://www.spa.gov.sa" + a["href"] for a in articles]
         print(f"✅ Found {len(urls)} news URLs", flush=True)
         return urls
     except Exception as e:
         print(f"❌ Error fetching news URLs: {e}", flush=True)
         return []
+
 
 
 # === استخراج محتوى الخبر ===
