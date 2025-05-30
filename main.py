@@ -64,14 +64,16 @@ def get_latest_news_urls():
         driver.get(SPA_URL)
         time.sleep(5)
 
-        # ✅ CSS Selector الصحيح
         elements = driver.find_elements(By.CSS_SELECTOR, "a[href*='/en/news/']")
-        urls = [
-           elem.get_attribute("href")
-            for elem in elements if elem.get_attribute("href").startswith("/en/news/")
-        ]
-        urls = ["https://www.spa.gov.sa" + url for url in urls]
 
+        urls = []
+        for elem in elements:
+            href = elem.get_attribute("href")
+            if href and "/en/news/" in href and "/tags/" not in href:
+                if href.startswith("/"):
+                    urls.append("https://www.spa.gov.sa" + href)
+                else:
+                    urls.append(href)
 
         driver.quit()
         print(f"✅ [Selenium] Found {len(urls)} news URLs", flush=True)
