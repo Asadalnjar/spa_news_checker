@@ -88,22 +88,31 @@ def get_latest_news_urls():
 # === استخراج محتوى الخبر ===
 def extract_news_content(url):
     try:
-        res = requests.get(url)
-        soup = BeautifulSoup(res.text, "html.parser")
+        chrome_options = Options()
+        chrome_options.add_argument("--headless")
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-dev-shm-usage")
+        chrome_options.add_argument("--disable-gpu")
+        chrome_options.add_argument("--remote-debugging-port=9223")
+        chrome_options.binary_location = "/usr/bin/google-chrome"
+        chrome_options.add_argument("user-agent=Mozilla/5.0")
 
-        # جلب كل الفقرات داخل الصفحة
-        paragraphs = soup.find_all("p")
-        content = "\n".join(p.get_text(strip=True) for p in paragraphs)
+        driver = webdriver.Chrome(options=chrome_options)
+        driver.get(url)
+        time.sleep(5)  # الانتظار لتحميل النصوص بالكامل
+
+        # جلب جميع الفقرات بعد تحميل JavaScript
+        paragraphs = driver.find_elements(By.TAG_NAME, "p")
+        content = "\n".join(p.text for p in paragraphs if p.text.strip())
+
+        driver.quit()
 
         if not content.strip():
-            # حفظ الصفحة لمراجعة البنية إن لم يكن فيها محتوى
-            with open("debug_article.html", "w", encoding="utf-8") as f:
-                f.write(soup.prettify())
-            print(f"⚠️ No content extracted from: {url}", flush=True)
+            print(f"⚠️ No content extracted from (Selenium): {url}", flush=True)
 
         return content
     except Exception as e:
-        print(f"❌ Error extracting news from {url}: {e}", flush=True)
+        print(f"❌ Selenium error while extracting content: {e}", flush=True)
         return ""
 
 
