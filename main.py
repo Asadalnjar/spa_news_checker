@@ -7,9 +7,6 @@ import sqlite3
 import schedule
 import time
 import os
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
 
 print("✅ main.py started", flush=True)
 
@@ -49,28 +46,33 @@ def mark_visited(url):
 # === جلب روابط الأخبار ===
 def get_latest_news_urls():
     try:
-        options = Options()
-        options.add_argument("--headless")
-        options.add_argument("--no-sandbox")
-        options.add_argument("--disable-dev-shm-usage")
+        chrome_options = Options()
+        chrome_options.add_argument("--headless")
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-dev-shm-usage")
+        chrome_options.add_argument("--disable-gpu")
+        chrome_options.add_argument("--remote-debugging-port=9222")
+        chrome_options.binary_location = "/usr/bin/google-chrome"
 
-        driver = webdriver.Chrome(options=options)
+        driver = webdriver.Chrome(service=Service("/usr/bin/chromedriver"),
+                                  options=chrome_options)
+
         driver.get(SPA_URL)
-
-        # انتظر تحميل الصفحة
         time.sleep(5)
 
-        # جلب الروابط بعد تحميل JS
-        elements = driver.find_elements(By.CSS_SELECTOR, "div.card-body a.text-dark")
-        urls = ["https://www.spa.gov.sa" + elem.get_attribute("href") for elem in elements if "/en/news/" in elem.get_attribute("href")]
+        elements = driver.find_elements(By.CSS_SELECTOR,
+                                        "div.card-body a.text-dark")
+        urls = [
+            "https://www.spa.gov.sa" + elem.get_attribute("href")
+            for elem in elements if "/en/news/" in elem.get_attribute("href")
+        ]
 
-        print(f"✅ [Selenium] Found {len(urls)} news URLs", flush=True)
         driver.quit()
+        print(f"✅ [Selenium] Found {len(urls)} news URLs", flush=True)
         return urls
     except Exception as e:
         print(f"❌ Selenium error: {e}", flush=True)
         return []
-
 
 # === استخراج محتوى الخبر ===
 def extract_news_content(url):
