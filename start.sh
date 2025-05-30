@@ -1,3 +1,3 @@
 #!/bin/bash
-echo "✅ Running start.sh in $(pwd)"
-python src/main.py
+echo "✅ start.sh launched"
+python main.py
