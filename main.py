@@ -90,11 +90,22 @@ def extract_news_content(url):
     try:
         res = requests.get(url)
         soup = BeautifulSoup(res.text, "html.parser")
-        body = soup.select_one("div.article-text")
-        return body.get_text(separator="\n").strip() if body else ""
+
+        # جلب كل الفقرات داخل الصفحة
+        paragraphs = soup.find_all("p")
+        content = "\n".join(p.get_text(strip=True) for p in paragraphs)
+
+        if not content.strip():
+            # حفظ الصفحة لمراجعة البنية إن لم يكن فيها محتوى
+            with open("debug_article.html", "w", encoding="utf-8") as f:
+                f.write(soup.prettify())
+            print(f"⚠️ No content extracted from: {url}", flush=True)
+
+        return content
     except Exception as e:
         print(f"❌ Error extracting news from {url}: {e}", flush=True)
         return ""
+
 
 # === التحقق من الأخطاء اللغوية عبر ChatGPT ===
 def check_grammar(content):
