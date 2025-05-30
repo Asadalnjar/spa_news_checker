@@ -8,6 +8,8 @@ import schedule
 import time
 import os
 
+print("✅ main.py started", flush=True)
+
 # === إعداد المفاتيح والبيئة ===
 SPA_URL = "https://www.spa.gov.sa/en/news/latest-news?page=1"
 openai.api_key = os.environ["OPENAI_API_KEY"]
