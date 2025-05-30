@@ -50,10 +50,10 @@ def get_latest_news_urls():
         soup = BeautifulSoup(res.text, "html.parser")
         articles = soup.select('a.text-decoration-none')
         urls = ["https://www.spa.gov.sa" + a["href"] for a in articles if "/en/news/" in a["href"]]
-        print(f"✅ Found {len(urls)} news URLs")
+        print(f"✅ Found {len(urls)} news URLs", flush=True)
         return urls
     except Exception as e:
-        print(f"❌ Error fetching news URLs: {e}")
+        print(f"❌ Error fetching news URLs: {e}", flush=True)
         return []
 
 # === استخراج محتوى الخبر ===
@@ -64,7 +64,7 @@ def extract_news_content(url):
         body = soup.select_one("div.article-text")
         return body.get_text(separator="\n").strip() if body else ""
     except Exception as e:
-        print(f"❌ Error extracting news from {url}: {e}")
+        print(f"❌ Error extracting news from {url}: {e}", flush=True)
         return ""
 
 # === التحقق من الأخطاء اللغوية عبر ChatGPT ===
@@ -76,13 +76,15 @@ def check_grammar(content):
             "If there are any mistakes, reply: Caution, and list all found mistakes.\n\n"
             + content
         )
+        print("🧠 Sending content to OpenAI for grammar check...", flush=True)
         response = openai.ChatCompletion.create(
             model="gpt-4",
             messages=[{"role": "user", "content": prompt}]
         )
         return response.choices[0].message.content.strip()
     except Exception as e:
-        return f"Error during grammar check: {e}"
+        print(f"❌ Error during grammar check: {e}", flush=True)
+        return "Error during grammar check"
 
 # === إرسال البريد الإلكتروني ===
 def send_email(subject, body):
@@ -97,18 +99,18 @@ def send_email(subject, body):
             smtp.starttls()
             smtp.login(EMAIL_SENDER, EMAIL_PASSWORD)
             smtp.send_message(msg)
-        print(f"📧 Email sent: {subject}")
+        print(f"📧 Email sent: {subject}", flush=True)
     except Exception as e:
-        print(f"❌ Error sending email: {e}")
+        print(f"❌ Error sending email: {e}", flush=True)
 
 # === تنفيذ المهمة ===
 def monitor_news():
     try:
-        print("🔍 Checking SPA news...")
+        print("🔍 Checking SPA news...", flush=True)
         urls = get_latest_news_urls()
         for i, url in enumerate(urls):
             if not is_visited(url):
-                print(f"📰 New article: {url}")
+                print(f"📰 New article: {url}", flush=True)
                 content = extract_news_content(url)
                 if content:
                     result = check_grammar(content)
@@ -119,11 +121,11 @@ def monitor_news():
                     send_email(f"[SPA News Check] News #{i+1} - {status}", body)
                 mark_visited(url)
     except Exception as e:
-        print(f"❌ Error in monitor_news(): {e}")
+        print(f"❌ Error in monitor_news(): {e}", flush=True)
 
 # === الجدولة والتشغيل ===
 def run_scheduler():
-    print("🟢 SPA News Monitor Service Started.")
+    print("🟢 SPA News Monitor Service Started.", flush=True)
     init_db()
     monitor_news()  # تشغيل مباشر عند البدء
     schedule.every(1).hours.do(monitor_news)
