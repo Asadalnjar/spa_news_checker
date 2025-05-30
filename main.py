@@ -8,6 +8,12 @@ import schedule
 import time
 import os
 
+# 🧠 استيراد Selenium
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+
 print("✅ main.py started", flush=True)
 
 # === إعداد المفاتيح والبيئة ===
@@ -60,8 +66,7 @@ def get_latest_news_urls():
         driver.get(SPA_URL)
         time.sleep(5)
 
-        elements = driver.find_elements(By.CSS_SELECTOR,
-                                        "div.card-body a.text-dark")
+        elements = driver.find_elements(By.CSS_SELECTOR, "div.card-body a.text-dark")
         urls = [
             "https://www.spa.gov.sa" + elem.get_attribute("href")
             for elem in elements if "/en/news/" in elem.get_attribute("href")
