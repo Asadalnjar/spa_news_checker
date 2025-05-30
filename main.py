@@ -11,7 +11,6 @@ import os
 # 🧠 Selenium Imports
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 
 print("✅ main.py started", flush=True)
@@ -59,21 +58,25 @@ def get_latest_news_urls():
         chrome_options.add_argument("--disable-gpu")
         chrome_options.add_argument("--remote-debugging-port=9222")
         chrome_options.binary_location = "/usr/bin/google-chrome"
+        chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/112 Safari/537.36")
 
         driver = webdriver.Chrome(options=chrome_options)
         driver.get(SPA_URL)
-        time.sleep(5)
+        time.sleep(7)  # منح وقت كافٍ لتحميل الصفحة بالكامل
 
-        elements = driver.find_elements(By.CSS_SELECTOR, "a[href^='/en/news/']")
+        # ✅ التقاط روابط الأخبار الحقيقية التي تبدأ بـ /en/N
+        elements = driver.find_elements(By.CSS_SELECTOR, "a[href^='/en/N']")
         urls = []
+
         for elem in elements:
             href = elem.get_attribute("href")
             if href:
-                # التأكد أن الرابط يشير إلى خبر فعلي وليس صفحة تصنيف
-                parts = href.strip().split("/")
-                if parts[-1].isdigit():  # آخر جزء هو رقم ID للخبر
-                    full_url = href if href.startswith("http") else "https://www.spa.gov.sa" + href
-                    urls.append(full_url)
+                full_url = href if href.startswith("http") else "https://www.spa.gov.sa" + href
+                urls.append(full_url)
+
+        # حفظ الصفحة للمراجعة إذا لزم الأمر
+        with open("spa_page_debug.html", "w", encoding="utf-8") as f:
+            f.write(driver.page_source)
 
         driver.quit()
         print(f"✅ [Selenium] Found {len(urls)} news URLs", flush=True)
