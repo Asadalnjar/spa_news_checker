@@ -151,7 +151,7 @@ def run_scheduler():
     print("🟢 SPA News Monitor Service Started.", flush=True)
     init_db()
     monitor_news()  # تشغيل مباشر عند البدء
-    schedule.every(1).hours.do(monitor_news)
+    schedule.every(20).minutes.do(monitor_news)
     while True:
         schedule.run_pending()
         time.sleep(10)
