@@ -8,7 +8,7 @@ import schedule
 import time
 import os
 
-# 🧠 استيراد Selenium
+# 🧠 Selenium Imports
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
@@ -61,15 +61,14 @@ def get_latest_news_urls():
         chrome_options.binary_location = "/usr/bin/google-chrome"
 
         driver = webdriver.Chrome(options=chrome_options)
-
-
         driver.get(SPA_URL)
         time.sleep(5)
 
-        elements = driver.find_elements(By.CSS_SELECTOR, "div.card-body a.text-dark")
+        # ✅ CSS Selector الصحيح
+        elements = driver.find_elements(By.CSS_SELECTOR, "a[href*='/en/news/']")
         urls = [
             "https://www.spa.gov.sa" + elem.get_attribute("href")
-            for elem in elements if "/en/news/" in elem.get_attribute("href")
+            for elem in elements if elem.get_attribute("href")
         ]
 
         driver.quit()
