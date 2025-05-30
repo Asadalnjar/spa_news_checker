@@ -60,8 +60,8 @@ def get_latest_news_urls():
         chrome_options.add_argument("--remote-debugging-port=9222")
         chrome_options.binary_location = "/usr/bin/google-chrome"
 
-        driver = webdriver.Chrome(service=Service("/usr/bin/chromedriver"),
-                                  options=chrome_options)
+        driver = webdriver.Chrome(options=chrome_options)
+
 
         driver.get(SPA_URL)
         time.sleep(5)
