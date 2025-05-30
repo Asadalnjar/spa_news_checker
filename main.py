@@ -141,13 +141,19 @@ def monitor_news():
             if not is_visited(url):
                 print(f"📰 New article: {url}", flush=True)
                 content = extract_news_content(url)
+                print(f"📄 Content length: {len(content)}", flush=True)  # ✅ جديد
                 if content:
                     result = check_grammar(content)
+                    print(f"🔎 Grammar result: {result}", flush=True)  # ✅ جديد
                     status = "OK" if result == "OK" else "Caution"
                     body = f"News #{i+1}\n{url}\nStatus: {status}"
                     if status == "Caution":
                         body += f"\nMistakes:\n{result}"
+                    print("📦 Sending email...", flush=True)  # ✅ جديد
                     send_email(f"[SPA News Check] News #{i+1} - {status}", body)
+                    print("✅ Email sent.", flush=True)  # ✅ جديد
+                else:
+                    print("⚠️ No content extracted.", flush=True)  # ✅ جديد
                 mark_visited(url)
     except Exception as e:
         print(f"❌ Error in monitor_news(): {e}", flush=True)
