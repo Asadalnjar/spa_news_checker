@@ -12,6 +12,7 @@ import re
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
+from openai import OpenAI
 
 print("✅ main.py started", flush=True)
 
