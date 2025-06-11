@@ -145,27 +145,29 @@ def extract_news_content(url):
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-dev-shm-usage")
         chrome_options.add_argument("--disable-gpu")
-        chrome_options.add_argument("--remote-debugging-port=9223")
         chrome_options.binary_location = "/usr/bin/google-chrome"
-        chrome_options.add_argument("user-agent=Mozilla/5.0")
 
         driver = webdriver.Chrome(options=chrome_options)
         driver.get(url)
-        time.sleep(5)  # الانتظار لتحميل النصوص بالكامل
+        time.sleep(5)
 
-        # جلب جميع الفقرات بعد تحميل JavaScript
-        paragraphs = driver.find_elements(By.TAG_NAME, "p")
+        # ✅ العثور على العنصر الرئيسي الذي يحتوي على الفقرات
+        article_container = driver.find_element(By.XPATH, "//div[contains(@class, 'MuiGrid-root') and contains(@class, 'MuiGrid-item') and not(contains(@class, 'no-print'))]")
+
+        # استخراج جميع الفقرات النصية داخل هذا العنصر فقط
+        paragraphs = article_container.find_elements(By.TAG_NAME, "p")
         content = "\n".join(p.text for p in paragraphs if p.text.strip())
 
         driver.quit()
 
         if not content.strip():
-            print(f"⚠️ No content extracted from (Selenium): {url}", flush=True)
+            print(f"⚠️ No content extracted from: {url}", flush=True)
 
         return content
     except Exception as e:
         print(f"❌ Selenium error while extracting content: {e}", flush=True)
         return ""
+
 
 
 # === التحقق من الأخطاء اللغوية عبر ChatGPT ===
@@ -356,7 +358,7 @@ def run_scheduler():
     print("🟢 SPA News Monitor Service Started.", flush=True)
     init_db()
     monitor_news()  # تشغيل مباشر عند البدء
-    schedule.every(20).minutes.do(monitor_news)
+    schedule.every(5).minutes.do(monitor_news)
     while True:
         schedule.run_pending()
         time.sleep(10)
