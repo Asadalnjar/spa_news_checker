@@ -145,23 +145,22 @@ def extract_news_content(url):
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-dev-shm-usage")
         chrome_options.add_argument("--disable-gpu")
+        chrome_options.add_argument("--remote-debugging-port=9223")
         chrome_options.binary_location = "/usr/bin/google-chrome"
+        chrome_options.add_argument("user-agent=Mozilla/5.0")
 
         driver = webdriver.Chrome(options=chrome_options)
         driver.get(url)
-        time.sleep(5)
+        time.sleep(5)  # الانتظار لتحميل النصوص بالكامل
 
-        # ✅ العثور على العنصر الرئيسي الذي يحتوي على الفقرات
-        article_container = driver.find_element(By.XPATH, "//div[contains(@class, 'MuiGrid-root') and contains(@class, 'MuiGrid-item') and not(contains(@class, 'no-print'))]")
-
-        # استخراج جميع الفقرات النصية داخل هذا العنصر فقط
-        paragraphs = article_container.find_elements(By.TAG_NAME, "p")
+        # جلب جميع الفقرات بعد تحميل JavaScript
+        paragraphs = driver.find_elements(By.TAG_NAME, "p")
         content = "\n".join(p.text for p in paragraphs if p.text.strip())
 
         driver.quit()
 
         if not content.strip():
-            print(f"⚠️ No content extracted from: {url}", flush=True)
+            print(f"⚠️ No content extracted from (Selenium): {url}", flush=True)
 
         return content
     except Exception as e:
