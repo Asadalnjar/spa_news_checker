@@ -179,7 +179,7 @@ def check_grammar(content):
         )
         print("🧠 Sending content to OpenAI for grammar check...", flush=True)
         response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",  # استخدم GPT-4 إذا كان متاحًا
+            model="gpt-3.5-turbo",  # أو gpt-4 إذا كنت مشتركًا فيه
             messages=[
                 {"role": "system", "content": "You are a grammar checker."},
                 {"role": "user", "content": prompt}
