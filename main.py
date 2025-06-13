@@ -178,18 +178,19 @@ def check_grammar(content):
             + content
         )
         print("🧠 Sending content to OpenAI for grammar check...", flush=True)
-        response = openai.Completion.create(
-            model="text-davinci-003",
-            prompt=prompt,
-            max_tokens=500,
-            temperature=0.2
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",  # استخدم GPT-4 إذا كان متاحًا
+            messages=[
+                {"role": "system", "content": "You are a grammar checker."},
+                {"role": "user", "content": prompt}
+            ]
         )
-        return response.choices[0].text.strip()
+        return response.choices[0].message.content.strip()
     except Exception as e:
         print(f"❌ Error during grammar check: {e}", flush=True)
         return "Error during grammar check"
 
-    
+
 
 # دالة التحقق من الأخطاء في Table A
 def check_table_a_violations(content):
