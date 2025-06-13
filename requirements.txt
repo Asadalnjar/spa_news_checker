@@ -1,5 +1,5 @@
 requests==2.31.0
 beautifulsoup4==4.12.3
-openai==1.14.3
+openai==0.28
 schedule==1.2.1
 selenium==4.21.0

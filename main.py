@@ -179,11 +179,13 @@ def check_grammar(content):
             + content
         )
         print("🧠 Sending content to OpenAI for grammar check...", flush=True)
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[{"role": "user", "content": prompt}]
-        )
-        return response.choices[0].message.content.strip()
+        esponse = openai.Completion.create(
+          model="text-davinci-003",
+          prompt=prompt,
+          max_tokens=500
+       )
+        return response.choices[0].text.strip()
+
     except Exception as e:
         print(f"❌ Error during grammar check: {e}", flush=True)
         return "Error during grammar check"
