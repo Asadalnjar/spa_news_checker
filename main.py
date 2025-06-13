@@ -179,16 +179,17 @@ def check_grammar(content):
             + content
         )
         print("🧠 Sending content to OpenAI for grammar check...", flush=True)
-        esponse = openai.Completion.create(
-          model="text-davinci-003",
-          prompt=prompt,
-          max_tokens=500
-       )
+        response = openai.Completion.create(
+            model="text-davinci-003",
+            prompt=prompt,
+            max_tokens=500,
+            temperature=0.2
+        )
         return response.choices[0].text.strip()
-
     except Exception as e:
         print(f"❌ Error during grammar check: {e}", flush=True)
         return "Error during grammar check"
+
     
 
 # دالة التحقق من الأخطاء في Table A
