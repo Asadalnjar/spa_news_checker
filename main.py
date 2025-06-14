@@ -12,6 +12,7 @@ import re
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
+from openai import OpenAI
 
 print("✅ main.py started", flush=True)
 
@@ -167,36 +168,25 @@ def extract_news_content(url):
         return ""
 
 
-
 # === التحقق من الأخطاء اللغوية عبر ChatGPT ===
 def check_grammar(content):
     try:
-        import openai
-        client = openai.OpenAI(api_key=os.environ["OPENAI_API_KEY"])
-
         prompt = (
             "Check grammar and spelling mistakes of the news item below. "
             "If there are no mistakes, reply: OK. "
             "If there are any mistakes, reply: Caution, and list all found mistakes.\n\n"
             + content
         )
-
         print("🧠 Sending content to OpenAI for grammar check...", flush=True)
-
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "You are a grammar checker."},
-                {"role": "user", "content": prompt}
-            ]
+        response = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=[{"role": "user", "content": prompt}]
         )
-
         return response.choices[0].message.content.strip()
     except Exception as e:
         print(f"❌ Error during grammar check: {e}", flush=True)
         return "Error during grammar check"
-
-
+    
 
 # دالة التحقق من الأخطاء في Table A
 def check_table_a_violations(content):
@@ -366,7 +356,7 @@ def run_scheduler():
     print("🟢 SPA News Monitor Service Started.", flush=True)
     init_db()
     monitor_news()  # تشغيل مباشر عند البدء
-    schedule.every(5).minutes.do(monitor_news)
+    schedule.every(20).minutes.do(monitor_news)
     while True:
         schedule.run_pending()
         time.sleep(10)
