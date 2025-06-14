@@ -12,7 +12,6 @@ import re
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
-from openai import OpenAI
 
 print("✅ main.py started", flush=True)
 
@@ -168,25 +167,50 @@ def extract_news_content(url):
         return ""
 
 
+
 # === التحقق من الأخطاء اللغوية عبر ChatGPT ===
 def check_grammar(content):
     try:
+        import openai
+        client = openai.OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+
         prompt = (
             "Check grammar and spelling mistakes of the news item below. "
             "If there are no mistakes, reply: OK. "
             "If there are any mistakes, reply: Caution, and list all found mistakes.\n\n"
             + content
         )
+
         print("🧠 Sending content to OpenAI for grammar check...", flush=True)
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[{"role": "user", "content": prompt}]
+
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a grammar checker."},
+                {"role": "user", "content": prompt}
+            ]
         )
+
         return response.choices[0].message.content.strip()
+
+    except openai.error.RateLimitError:
+        print("❌ Rate limit exceeded – please check your OpenAI usage quota.", flush=True)
+        return "Error during grammar check: Rate limit exceeded"
+
+    except openai.error.AuthenticationError:
+        print("❌ Authentication failed – please verify your OpenAI API key.", flush=True)
+        return "Error during grammar check: Authentication failed"
+
+    except openai.error.OpenAIError as e:
+        print(f"❌ OpenAI API error: {e}", flush=True)
+        return f"Error during grammar check: {str(e)}"
+
     except Exception as e:
-        print(f"❌ Error during grammar check: {e}", flush=True)
-        return "Error during grammar check"
-    
+        print(f"❌ Unknown error during grammar check: {e}", flush=True)
+        return f"Error during grammar check: {str(e)}"
+
+
+
 
 # دالة التحقق من الأخطاء في Table A
 def check_table_a_violations(content):
@@ -276,6 +300,7 @@ def monitor_news():
     try:
         print("🔍 Checking SPA news...", flush=True)
         urls = get_latest_news_urls()
+
         for i, url in enumerate(urls):
             if not is_visited(url):
                 print(f"📰 New article: {url}", flush=True)
@@ -283,20 +308,20 @@ def monitor_news():
                 print(f"📄 Content length: {len(content)}", flush=True)
 
                 if content:
-                    # 1. Grammar & Spelling
+                    # 1. Grammar & Spelling Check
                     result = check_grammar(content)
                     print(f"🔎 Grammar result: {result}", flush=True)
 
-                    # 2. Table A Check
+                    # 2. Table A: Official Names Check
                     table_a_issues = check_table_a_violations(content)
 
-                    # 3. Table B Check
+                    # 3. Table B: Region Names Check
                     table_b_issues = check_table_b_violations(content)
 
-                    # 4. Table C Check
+                    # 4. Table C: Writing Rules Check
                     table_c_issues = check_table_c_rules(content)
 
-                    # 5. Determine subject
+                    # 5. Collect all issue types
                     issues = []
                     if result != "OK":
                         issues.append("grammar and spell")
@@ -309,18 +334,18 @@ def monitor_news():
 
                     subject = "OK" if not issues else f"caution, {' and '.join(issues)}"
 
-                    # 6. Build email body
+                    # 6. Compose email body
                     if subject == "OK":
                         body = (
                             f"Subject: OK\n"
-                            f"News Number: #{i+1}\n"
+                            f"News Number: #{i + 1}\n"
                             f"News Link: {url}\n"
                             f"Status: No major issues found."
                         )
                     else:
                         body = (
                             f"Subject: {subject}\n"
-                            f"News Number: #{i+1}\n"
+                            f"News Number: #{i + 1}\n"
                             f"News Link: {url}\n"
                             f"Issue(s) Found:\n"
                         )
@@ -341,13 +366,15 @@ def monitor_news():
                             body += "\n\nTable C (Writing Rules):\n"
                             body += "\n".join(table_c_issues)
 
-                    # 7. Send Email
+                    # 7. Send email
                     send_email(subject, body)
                     print(f"📧 Email sent: {subject}", flush=True)
+
                 else:
                     print("⚠️ No content extracted.", flush=True)
 
                 mark_visited(url)
+
     except Exception as e:
         print(f"❌ Error in monitor_news(): {e}", flush=True)
 
@@ -356,7 +383,7 @@ def run_scheduler():
     print("🟢 SPA News Monitor Service Started.", flush=True)
     init_db()
     monitor_news()  # تشغيل مباشر عند البدء
-    schedule.every(20).minutes.do(monitor_news)
+    schedule.every(5).minutes.do(monitor_news)
     while True:
         schedule.run_pending()
         time.sleep(10)
