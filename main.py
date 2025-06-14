@@ -171,20 +171,26 @@ def extract_news_content(url):
 # === التحقق من الأخطاء اللغوية عبر ChatGPT ===
 def check_grammar(content):
     try:
+        import openai
+        client = openai.OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+
         prompt = (
             "Check grammar and spelling mistakes of the news item below. "
             "If there are no mistakes, reply: OK. "
             "If there are any mistakes, reply: Caution, and list all found mistakes.\n\n"
             + content
         )
+
         print("🧠 Sending content to OpenAI for grammar check...", flush=True)
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",  # أو gpt-4 إذا كنت مشتركًا فيه
+
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": "You are a grammar checker."},
                 {"role": "user", "content": prompt}
             ]
         )
+
         return response.choices[0].message.content.strip()
     except Exception as e:
         print(f"❌ Error during grammar check: {e}", flush=True)
