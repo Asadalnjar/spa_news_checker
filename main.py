@@ -27,6 +27,23 @@ SMTP_PORT = 587
 DB_FILE = "visited_news.db"
 
 
+EXCLUDED_WORDS = [
+    # الأشهر الميلادية
+    "January", "February", "March", "April", "May", "June", 
+    "July", "August", "September", "October", "November", "December",
+    # الأشهر الهجرية
+    "Muharram", "Safar", "Rabi al-Awwal", "Rabi al-Thani", "Jumada al-Awwal",
+    "Jumada al-Thani", "Rajab", "Sha'ban", "Ramadan", "Shawwal",
+    "Dhu al-Qi'dah", "Dhu al-Hijjah",
+    # أيام الأسبوع
+    "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday",
+    # معلومات الوكالة
+    "The Saudi Press Agency (SPA), established in 1971, is a prime reference for those interested in local news and events. The agency provides accurate and real-time media content in several languages. It operates ​​according to professional best practices and makes use of the latest effective communication techniques. SPA seeks to be an influential voice of the Kingdom of Saudi Arabia in the Arab and Islamic worlds, as well as globally.",
+    "Agency services", "Tenders", "Contact", "Privacy policy", 
+    "Terms-and-Conditions", "Public services", "Private Sector Feedback Platform", 
+    "Public Consultation Platform"
+]
+
 # ✅ Table A: Official Names and Titles
 TABLE_A_NAMES = [
     "Custodian of the Two Holy Mosques King Salman bin Abdulaziz Al Saud",
@@ -174,12 +191,17 @@ def check_grammar(content):
         import openai
         client = openai.OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
+        excluded_text = "\n".join(EXCLUDED_WORDS)
+
         prompt = (
-            "Check grammar and spelling mistakes of the news item below. "
-            "If there are no mistakes, reply: OK. "
-            "If there are any mistakes, reply: Caution, and list all found mistakes.\n\n"
-            + content
-        )
+         "Check grammar and spelling mistakes of the news item below. "
+         "If there are no mistakes, reply: OK. "
+         "If there are any mistakes, reply: Caution, and list all found mistakes.\n\n"
+          "Do NOT check or modify the following words or phrases even if they seem wrong:\n"
+    f"{excluded_text}\n\n"
+    + content
+)
+
 
         print("🧠 Sending content to OpenAI for grammar check...", flush=True)
 
