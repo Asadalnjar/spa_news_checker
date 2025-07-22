@@ -108,7 +108,7 @@ def get_latest_news_urls():
         chrome_options.add_argument("--disable-dev-shm-usage")
         chrome_options.add_argument("--disable-gpu")
         chrome_options.add_argument("--remote-debugging-port=9222")
-        chrome_options.binary_location = "/usr/bin/google-chrome"
+        chrome_options.binary_location = "/usr/bin/chromium"
         chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/112 Safari/537.36")
 
         driver = webdriver.Chrome(options=chrome_options)
@@ -145,7 +145,7 @@ def extract_news_content(url):
         chrome_options.add_argument("--disable-dev-shm-usage")
         chrome_options.add_argument("--disable-gpu")
         chrome_options.add_argument("--remote-debugging-port=9223")
-        chrome_options.binary_location = "/usr/bin/google-chrome"
+        chrome_options.binary_location = "/usr/bin/chromium"
         chrome_options.add_argument("user-agent=Mozilla/5.0")
 
         driver = webdriver.Chrome(options=chrome_options)
