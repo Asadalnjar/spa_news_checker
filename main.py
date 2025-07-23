@@ -190,6 +190,9 @@ def check_grammar(content):
     try:
         import openai
         client = openai.OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+        # حذف العبارات المتكررة من النص قبل الإرسال إلى GPT
+        for phrase in EXCLUDED_WORDS:
+            content = content.replace(phrase, "")
 
         excluded_text = "\n".join(EXCLUDED_WORDS)
 
