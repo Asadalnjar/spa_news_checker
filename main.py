@@ -357,7 +357,7 @@ def monitor_news():
                     if table_c_issues:
                         issues.append("Table C")
 
-                    subject = "OK" if not issues else f"caution, {' and '.join(issues)}"
+                    subject = "✅ OK" if not issues else f"⚠️ caution, {' and '.join(issues)}"
 
                     # 6. Compose email body
                     if subject == "OK":
