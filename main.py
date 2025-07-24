@@ -186,6 +186,17 @@ def extract_news_content(url):
 
 
 # === التحقق من الأخطاء اللغوية عبر ChatGPT ===
+
+# === فلترة التنبيهات غير المهمة في القواعد ===
+def is_false_positive_grammar(result):
+    harmless_phrases = [
+        "should be capitalized as",
+        "a space is needed",
+        "could use punctuation",
+        "seems incorrect"
+    ]
+    lines = result.splitlines()
+    return all(any(phrase in line for phrase in harmless_phrases) for line in lines if line.strip())
 def check_grammar(content):
     try:
         import openai
@@ -348,7 +359,7 @@ def monitor_news():
 
                     # 5. Collect all issue types
                     issues = []
-                    if result != "OK":
+                    if result.strip() != "OK" and not is_false_positive_grammar(result):
                         issues.append("grammar and spell")
                     if table_a_issues:
                         issues.append("Table A")
