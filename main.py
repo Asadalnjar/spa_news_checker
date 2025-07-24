@@ -231,7 +231,7 @@ def check_grammar(content):
         print("🧠 Sending content to OpenAI for grammar check...", flush=True)
 
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4",
             messages=[
                 {"role": "system", "content": "You are a grammar checker."},
                 {"role": "user", "content": prompt}
