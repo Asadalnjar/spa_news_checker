@@ -192,11 +192,22 @@ def is_false_positive_grammar(result):
     harmless_phrases = [
         "should be capitalized as",
         "a space is needed",
+        "extra space",
         "could use punctuation",
-        "seems incorrect"
+        "seems incorrect",
+        "should have proper quotation marks",
+        "should be revised for clarity",
+        "Add a comma",
+        "Remove the extra asterisk",
+        "separate it from",
+        "capitalize",
+        "comma after",
+        "congruent with",
+        "corrected to a standard format",
     ]
     lines = result.splitlines()
-    return all(any(phrase in line for phrase in harmless_phrases) for line in lines if line.strip())
+    return all(any(phrase.lower() in line.lower() for phrase in harmless_phrases) for line in lines if line.strip())
+
 def check_grammar(content):
     try:
         import openai
