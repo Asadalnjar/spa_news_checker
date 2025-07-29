@@ -152,7 +152,6 @@ def get_latest_news_urls():
     except Exception as e:
         print(f"❌ Selenium error: {e}", flush=True)
         return []
-
 # === استخراج محتوى الخبر ===
 def extract_news_content(url):
     try:
@@ -167,16 +166,34 @@ def extract_news_content(url):
 
         driver = webdriver.Chrome(options=chrome_options)
         driver.get(url)
-        time.sleep(5)  # الانتظار لتحميل النصوص بالكامل
 
-        # جلب جميع الفقرات بعد تحميل JavaScript
-        paragraphs = driver.find_elements(By.TAG_NAME, "p")
-        content = "\n".join(p.text for p in paragraphs if p.text.strip())
+        # الانتظار حتى تحميل النص الرئيسي
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "div.singleNewsText"))
+        )
 
+        # جلب النصوص فقط من منطقة المقال
+        article = driver.find_element(By.CSS_SELECTOR, "div.singleNewsText")
+        paragraphs = article.find_elements(By.TAG_NAME, "p")
+
+        # تنظيف التكرار والترتيب + استبعاد الفقرات القصيرة جداً
+        seen = set()
+        content_lines = []
+        for p in paragraphs:
+            text = p.text.strip()
+            # استبعاد الفقرات القصيرة جداً (أقل من 4 كلمات)
+            if len(text.split()) < 4:
+                continue
+            if text and text not in seen:
+                seen.add(text)
+                content_lines.append(text)
+
+        # دمج الفقرات في نص واحد مرتب
+        content = "\n".join(content_lines)
         driver.quit()
 
         if not content.strip():
-            print(f"⚠️ No content extracted from (Selenium): {url}", flush=True)
+            print(f"⚠️ No content extracted from: {url}", flush=True)
 
         return content
     except Exception as e:
@@ -186,50 +203,59 @@ def extract_news_content(url):
 
 
 # === التحقق من الأخطاء اللغوية عبر ChatGPT ===
-
 # === فلترة التنبيهات غير المهمة في القواعد ===
 def is_false_positive_grammar(result):
-    harmless_phrases = [
-        "should be capitalized as",
-        "a space is needed",
-        "extra space",
-        "could use punctuation",
-        "seems incorrect",
-        "should have proper quotation marks",
-        "should be revised for clarity",
-        "Add a comma",
-        "Remove the extra asterisk",
-        "separate it from",
-        "capitalize",
-        "comma after",
-        "congruent with",
-        "corrected to a standard format",
+    """
+    تعود True إذا كانت كل أو أغلب الملاحظات تافهة ولا تستحق التنبيه.
+    """
+    ignore_keywords = [
+        # مشاكل الترجمة أو التنسيق غير المؤثرة
+        "capitalized", "capitalize", "comma", "period", "punctuation", "space", "spacing",
+        "hyphen", "dash", "format", "date", "duplicate", "redundancy", "unclear",
+        "terms-and-conditions", "voice reader", "r101",
+        # العبارات الشائعة من GPT
+        "a space is needed", "extra space", "could use punctuation",
+        "should have proper quotation marks", "should be revised for clarity",
+        "add a comma", "remove the extra asterisk", "separate it from",
+        "comma after", "congruent with", "corrected to a standard format"
     ]
-    lines = result.splitlines()
-    return all(any(phrase.lower() in line.lower() for phrase in harmless_phrases) for line in lines if line.strip())
+
+    lines = [line for line in result.splitlines() if line.strip()]
+    if not lines:
+        return True
+
+    # حساب نسبة الملاحظات التافهة
+    harmless_count = sum(1 for line in lines if any(kw in line.lower() for kw in ignore_keywords))
+    harmless_ratio = harmless_count / len(lines)
+
+    # إذا كل أو أغلب الملاحظات تافهة → نعتبرها False Positive
+    return harmless_ratio >= 0.7
+
 
 def check_grammar(content):
     try:
         import openai
         client = openai.OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+
         # حذف العبارات المتكررة من النص قبل الإرسال إلى GPT
         for phrase in EXCLUDED_WORDS:
             content = content.replace(phrase, "")
 
         excluded_text = "\n".join(EXCLUDED_WORDS)
 
+        # إعداد الـ Prompt
         prompt = (
-         "Check grammar and spelling mistakes of the news item below. "
-         "If there are no mistakes, reply: OK. "
-         "If there are any mistakes, reply: Caution, and list all found mistakes.\n\n"
-          "Do NOT check or modify the following words or phrases even if they seem wrong:\n"
-    f"{excluded_text}\n\n"
-    + content
-)
-
+            "Check grammar and spelling mistakes of the news item below. "
+            "If there are no mistakes, reply: OK. "
+            "If there are any mistakes, reply: Caution, and list all found mistakes.\n\n"
+            "Do NOT check or modify the following words or phrases even if they seem wrong:\n"
+            f"{excluded_text}\n\n"
+            + content
+        )
 
         print("🧠 Sending content to OpenAI for grammar check...", flush=True)
 
+        # طلب التصحيح من GPT
         response = client.chat.completions.create(
             model="gpt-4",
             messages=[
@@ -238,7 +264,28 @@ def check_grammar(content):
             ]
         )
 
-        return response.choices[0].message.content.strip()
+        # النتيجة الأولية من GPT
+        result = response.choices[0].message.content.strip()
+
+        # إذا النتيجة False Positive → ترجع OK
+        if is_false_positive_grammar(result):
+            return "OK"
+
+        # فلترة الملاحظات بعد الرد من GPT
+        ignore_keywords = [
+            "capitalized", "capitalize", "comma", "period", "punctuation", "space", "spacing",
+            "hyphen", "dash", "format", "date", "duplicate", "redundancy", "unclear",
+            "terms-and-conditions", "voice reader", "r101"
+        ]
+        filtered_issues = []
+        for line in result.splitlines():
+            if not any(kw in line.lower() for kw in ignore_keywords):
+                filtered_issues.append(line)
+
+        # إذا لا يوجد ملاحظات مهمة بعد الفلترة → OK
+        result = "\n".join(filtered_issues).strip() if filtered_issues else "OK"
+
+        return result
 
     except openai.error.RateLimitError:
         print("❌ Rate limit exceeded – please check your OpenAI usage quota.", flush=True)
@@ -255,9 +302,6 @@ def check_grammar(content):
     except Exception as e:
         print(f"❌ Unknown error during grammar check: {e}", flush=True)
         return f"Error during grammar check: {str(e)}"
-
-
-
 
 # دالة التحقق من الأخطاء في Table A
 def check_table_a_violations(content):
