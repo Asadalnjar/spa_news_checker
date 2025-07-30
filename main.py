@@ -154,6 +154,7 @@ def get_latest_news_urls():
     except Exception as e:
         print(f"❌ Selenium error: {e}", flush=True)
         return []
+    
 # === استخراج محتوى الخبر ===
 def extract_news_content(url):
     try:
@@ -169,28 +170,61 @@ def extract_news_content(url):
         driver = webdriver.Chrome(options=chrome_options)
         driver.get(url)
 
-        # الانتظار حتى تحميل النص الرئيسي
-        WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "div.singleNewsText"))
-        )
+        # قائمة احتمالات أماكن النص
+        possible_selectors = [
+            "div.singleNewsText",
+            "div.newsContent",
+            "section.singleNewsText",
+            "article.singleNewsText",
+            "div.news_body",
+            "div.article-text",
+            "div.articleBody"
+        ]
 
-        # جلب النصوص فقط من منطقة المقال
-        article = driver.find_element(By.CSS_SELECTOR, "div.singleNewsText")
-        paragraphs = article.find_elements(By.TAG_NAME, "p")
+        article = None
+        # نحاول كل Selector حتى نجد النص
+        for selector in possible_selectors:
+            try:
+                WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, selector))
+                )
+                article = driver.find_element(By.CSS_SELECTOR, selector)
+                break
+            except:
+                continue
 
-        # تنظيف التكرار والترتيب + استبعاد الفقرات القصيرة جداً
+        # إذا لم نجد أي عنصر من القائمة، نعمل Fallback على كل <p>
+        if not article:
+            try:
+                WebDriverWait(driver, 10).until(
+                    EC.presence_of_all_elements_located((By.TAG_NAME, "p"))
+                )
+                article = driver  # سنأخذ الفقرات من كل الصفحة
+                print(f"⚠️ Using fallback to scrape all <p> tags for {url}")
+            except:
+                print(f"⚠️ No article container or <p> tags found for {url}")
+                with open("debug_page.html", "w", encoding="utf-8") as f:
+                    f.write(driver.page_source)
+                driver.quit()
+                return ""
+
+        # جمع الفقرات
+        if article == driver:  # fallback mode
+            paragraphs = driver.find_elements(By.TAG_NAME, "p")
+        else:
+            paragraphs = article.find_elements(By.TAG_NAME, "p")
+
+        # تنظيف النصوص: استبعاد الفقرات القصيرة والمكررة
         seen = set()
         content_lines = []
         for p in paragraphs:
             text = p.text.strip()
-            # استبعاد الفقرات القصيرة جداً (أقل من 4 كلمات)
-            if len(text.split()) < 4:
+            if len(text.split()) < 4:  # تجاهل الفقرات القصيرة جدًا
                 continue
             if text and text not in seen:
                 seen.add(text)
                 content_lines.append(text)
 
-        # دمج الفقرات في نص واحد مرتب
         content = "\n".join(content_lines)
         driver.quit()
 
@@ -198,6 +232,7 @@ def extract_news_content(url):
             print(f"⚠️ No content extracted from: {url}", flush=True)
 
         return content
+
     except Exception as e:
         print(f"❌ Selenium error while extracting content: {e}", flush=True)
         return ""
