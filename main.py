@@ -168,11 +168,22 @@ def extract_news_content(url):
 def is_false_positive_grammar(result):
     if not result.strip() or result.strip().lower() == "ok":
         return True
+
     lines = [line for line in result.splitlines() if line.strip()]
+    if not lines:
+        return True
+
+    # إذا وُجدت أخطاء spelling أو أفعال خاطئة، لا نعتبرها false positive
+    critical_keywords = ["spelling", "verb", "agreement", "incorrect", "wrong", "should be"]
+    for line in lines:
+        if any(kw in line.lower() for kw in critical_keywords):
+            return False
+
+    # فلترة التوافه
     harmless_count = sum(
         1 for line in lines if any(re.search(pattern, line.lower()) for pattern in TRIVIAL_PATTERNS)
     )
-    harmless_ratio = harmless_count / len(lines) if lines else 1
+    harmless_ratio = harmless_count / len(lines)
     return harmless_ratio >= 0.7
 
 def should_skip_issue(issue_text):
